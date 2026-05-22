@@ -1,0 +1,317 @@
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import { CatalogTemplate, PlanType, UserRole, type UserRole as UserRoleValue } from "../lib/enums";
+
+const prisma = new PrismaClient();
+
+const seedPlanDefinitions = {
+  FREE: {
+    type: PlanType.FREE,
+    name: "Free",
+    maxProducts: 25,
+    maxAiConversationsMonthly: 100,
+    maxUsers: 1,
+    maxTemplates: 1,
+    advancedBranding: false,
+    quotesAndOrders: false
+  },
+  STARTER: {
+    type: PlanType.STARTER,
+    name: "Starter",
+    maxProducts: 150,
+    maxAiConversationsMonthly: 1000,
+    maxUsers: 2,
+    maxTemplates: 2,
+    advancedBranding: true,
+    quotesAndOrders: true
+  },
+  PRO: {
+    type: PlanType.PRO,
+    name: "Pro",
+    maxProducts: 1000,
+    maxAiConversationsMonthly: 5000,
+    maxUsers: 5,
+    maxTemplates: 4,
+    advancedBranding: true,
+    quotesAndOrders: true
+  },
+  BUSINESS: {
+    type: PlanType.BUSINESS,
+    name: "Business",
+    maxProducts: 5000,
+    maxAiConversationsMonthly: 25000,
+    maxUsers: 20,
+    maxTemplates: 4,
+    advancedBranding: true,
+    quotesAndOrders: true
+  }
+} as const;
+
+async function upsertOwner(email: string, name: string, role: UserRoleValue = UserRole.USER) {
+  const passwordHash = await bcrypt.hash("Demo1234!", 10);
+  return prisma.user.upsert({
+    where: { email },
+    update: { role },
+    create: { email, name, passwordHash, role }
+  });
+}
+
+async function main() {
+  const plans = await Promise.all(
+    Object.values(seedPlanDefinitions).map((plan) =>
+      prisma.plan.upsert({
+        where: { type: plan.type },
+        update: plan,
+        create: plan
+      })
+    )
+  );
+  const freePlan = plans.find((plan) => plan.type === PlanType.FREE);
+  const proPlan = plans.find((plan) => plan.type === PlanType.PRO);
+  if (!freePlan || !proPlan) throw new Error("No se pudieron crear los planes demo");
+
+  await upsertOwner("admin@demo.cl", "Admin Plataforma", UserRole.PLATFORM_ADMIN);
+  const storeOwner = await upsertOwner("storelamon@demo.cl", "Dueña STORELAMON");
+  const secOwner = await upsertOwner("seguridad@demo.cl", "Dueño CATG Seguridad");
+
+  const store = await prisma.business.upsert({
+    where: { slug: "storelamon" },
+    update: {
+      planId: proPlan.id,
+      planType: PlanType.PRO,
+      catalogTemplate: CatalogTemplate.BOUTIQUE_PREMIUM,
+      primaryColor: "#111827",
+      secondaryColor: "#FDF2F8",
+      accentColor: "#DB2777",
+      backgroundColor: "#FFF7ED",
+      textColor: "#111827",
+      buttonRadius: 18
+    },
+    create: {
+      ownerId: storeOwner.id,
+      planId: proPlan.id,
+      planType: PlanType.PRO,
+      name: "STORELAMON",
+      slug: "storelamon",
+      description: "Tienda demo de ropa femenina, outfits urbanos y accesorios color rosa.",
+      whatsappNumber: "+56912345678",
+      instagramUrl: "https://instagram.com/storelamon",
+      businessType: "Ropa y accesorios",
+      currency: "CLP",
+      catalogTemplate: CatalogTemplate.BOUTIQUE_PREMIUM,
+      primaryColor: "#111827",
+      secondaryColor: "#FDF2F8",
+      accentColor: "#DB2777",
+      backgroundColor: "#FFF7ED",
+      textColor: "#111827",
+      buttonRadius: 18,
+      subscription: {
+        create: {
+          planId: proPlan.id,
+          status: "TRIALING"
+        }
+      },
+      aiSettings: {
+        create: {
+          tone: "vendedora cercana, moderna y clara",
+          instructions: "Recomienda outfits completos, pregunta talla/color si falta información y no inventes stock ni precios."
+        }
+      }
+    }
+  });
+
+  const sec = await prisma.business.upsert({
+    where: { slug: "catg-seguridad" },
+    update: {
+      planId: proPlan.id,
+      planType: PlanType.PRO,
+      catalogTemplate: CatalogTemplate.TECH_PRO,
+      primaryColor: "#0F172A",
+      secondaryColor: "#E0F2FE",
+      accentColor: "#0284C7",
+      backgroundColor: "#F8FAFC",
+      textColor: "#0F172A",
+      buttonRadius: 10
+    },
+    create: {
+      ownerId: secOwner.id,
+      planId: proPlan.id,
+      planType: PlanType.PRO,
+      name: "CATG Seguridad",
+      slug: "catg-seguridad",
+      description: "Tienda demo de cámaras CCTV, seguridad para casas y locales.",
+      whatsappNumber: "+56987654321",
+      instagramUrl: "https://instagram.com/catgseguridad",
+      businessType: "Seguridad electrónica",
+      currency: "CLP",
+      catalogTemplate: CatalogTemplate.TECH_PRO,
+      primaryColor: "#0F172A",
+      secondaryColor: "#E0F2FE",
+      accentColor: "#0284C7",
+      backgroundColor: "#F8FAFC",
+      textColor: "#0F172A",
+      buttonRadius: 10,
+      subscription: {
+        create: {
+          planId: proPlan.id,
+          status: "TRIALING"
+        }
+      },
+      aiSettings: {
+        create: {
+          tone: "asesor técnico, directo y profesional",
+          instructions: "Pregunta si es casa, local o bodega. Recomienda kits según cantidad de puntos a cubrir. No inventes instalación ni garantía."
+        }
+      }
+    }
+  });
+
+  const moda = await prisma.category.upsert({
+    where: { businessId_slug: { businessId: store.id, slug: "ropa" } },
+    update: {},
+    create: { businessId: store.id, name: "Ropa", slug: "ropa" }
+  });
+
+  const accesorios = await prisma.category.upsert({
+    where: { businessId_slug: { businessId: store.id, slug: "accesorios" } },
+    update: {},
+    create: { businessId: store.id, name: "Accesorios", slug: "accesorios" }
+  });
+
+  const cctv = await prisma.category.upsert({
+    where: { businessId_slug: { businessId: sec.id, slug: "cctv" } },
+    update: {},
+    create: { businessId: sec.id, name: "Kits CCTV", slug: "cctv" }
+  });
+
+  const install = await prisma.category.upsert({
+    where: { businessId_slug: { businessId: sec.id, slug: "instalacion" } },
+    update: {},
+    create: { businessId: sec.id, name: "Instalación", slug: "instalacion" }
+  });
+
+  const products = [
+    {
+      businessId: store.id,
+      categoryId: moda.id,
+      name: "Polera Oversize Rosada",
+      slug: "polera-oversize-rosada",
+      sku: "STL-POL-ROS-M",
+      description: "Polera oversize color rosado pastel, tela suave, ideal para outfit urbano.",
+      price: 15990,
+      compareAtPrice: 19990,
+      discountPercent: 20,
+      stock: 18,
+      minStock: 5,
+      imageUrl: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1200&auto=format&fit=crop",
+      tags: "polera,oversize,rosa,urbano",
+      featured: true
+    },
+    {
+      businessId: store.id,
+      categoryId: moda.id,
+      name: "Jeans Cargo Wide Leg",
+      slug: "jeans-cargo-wide-leg",
+      sku: "STL-JEA-CAR-38",
+      description: "Jeans cargo wide leg, calce cómodo, bolsillos laterales y estilo streetwear.",
+      price: 28990,
+      compareAtPrice: 32990,
+      discountPercent: 10,
+      stock: 9,
+      minStock: 3,
+      imageUrl: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1200&auto=format&fit=crop",
+      tags: "jeans,cargo,streetwear,outfit",
+      featured: true
+    },
+    {
+      businessId: store.id,
+      categoryId: accesorios.id,
+      name: "Cartera Mini Pink",
+      slug: "cartera-mini-pink",
+      sku: "STL-CAR-PNK",
+      description: "Cartera pequeña color pink, correa ajustable, ideal para salida casual.",
+      price: 12990,
+      stock: 12,
+      minStock: 4,
+      imageUrl: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=1200&auto=format&fit=crop",
+      tags: "cartera,accesorio,pink,bolso",
+      featured: false
+    },
+    {
+      businessId: sec.id,
+      categoryId: cctv.id,
+      name: "Kit CCTV 4 Cámaras Full HD",
+      slug: "kit-cctv-4-camaras-full-hd",
+      sku: "CATG-CCTV-4HD",
+      description: "Kit con 4 cámaras bala Full HD, DVR, visión nocturna y acceso por app móvil.",
+      price: 89990,
+      compareAtPrice: 109990,
+      discountPercent: 15,
+      stock: 7,
+      minStock: 2,
+      imageUrl: "https://images.unsplash.com/photo-1557324232-b8917d3c3dcb?q=80&w=1200&auto=format&fit=crop",
+      tags: "camaras,cctv,seguridad,casa,negocio",
+      featured: true
+    },
+    {
+      businessId: sec.id,
+      categoryId: cctv.id,
+      name: "Kit CCTV 8 Cámaras Full HD",
+      slug: "kit-cctv-8-camaras-full-hd",
+      sku: "CATG-CCTV-8HD",
+      description: "Kit de 8 cámaras Full HD para locales, bodegas o casas grandes. Incluye DVR y app móvil.",
+      price: 159990,
+      compareAtPrice: 189990,
+      discountPercent: 10,
+      stock: 4,
+      minStock: 1,
+      imageUrl: "https://images.unsplash.com/photo-1580894894513-541e068a3e2b?q=80&w=1200&auto=format&fit=crop",
+      tags: "camaras,cctv,local,bodega,seguridad",
+      featured: true
+    },
+    {
+      businessId: sec.id,
+      categoryId: install.id,
+      name: "Instalación Básica CCTV",
+      slug: "instalacion-basica-cctv",
+      sku: "CATG-INST-BASIC",
+      description: "Servicio demo de instalación básica para kit de cámaras. Precio referencial según distancia y cableado.",
+      price: 49990,
+      stock: 99,
+      minStock: 0,
+      imageUrl: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=1200&auto=format&fit=crop",
+      tags: "instalacion,cctv,servicio,tecnico",
+      featured: false
+    }
+  ];
+
+  for (const p of products) {
+    await prisma.product.upsert({
+      where: { businessId_slug: { businessId: p.businessId, slug: p.slug } },
+      update: p,
+      create: p
+    });
+  }
+
+  await prisma.subscription.upsert({
+    where: { businessId: store.id },
+    update: { planId: proPlan.id },
+    create: { businessId: store.id, planId: proPlan.id }
+  });
+  await prisma.subscription.upsert({
+    where: { businessId: sec.id },
+    update: { planId: proPlan.id },
+    create: { businessId: sec.id, planId: proPlan.id }
+  });
+
+  console.log("Seed listo. Login demo: storelamon@demo.cl / Demo1234!, seguridad@demo.cl / Demo1234!, admin@demo.cl / Demo1234!");
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
