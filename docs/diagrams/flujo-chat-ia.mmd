@@ -1,0 +1,22 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Cliente as Cliente final
+    participant Chat as StoreChat.tsx
+    participant API as /api/ai/sales-assistant
+    participant DB as Prisma
+    participant Provider as DeepSeek o demo local
+
+    Cliente->>Chat: Escribe mensaje y envia
+    Chat->>Chat: Lee conversationId y visitorId de localStorage
+    Chat->>API: POST slug, message, conversationId, visitorId, productId opcional
+    API->>API: Valida Zod y rate limit por tienda/IP
+    API->>DB: Busca Business activo por slug
+    API->>DB: Verifica conversationId por businessId
+    API->>DB: Guarda mensaje USER
+    API->>DB: Obtiene historial y productos activos del tenant
+    API->>Provider: Envia contexto controlado
+    Provider-->>API: Respuesta
+    API->>DB: Guarda mensaje ASSISTANT
+    API-->>Chat: ok, conversationId, reply
+    Chat-->>Cliente: Muestra respuesta y mantiene scroll

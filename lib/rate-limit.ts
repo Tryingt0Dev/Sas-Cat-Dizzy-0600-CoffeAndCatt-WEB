@@ -6,6 +6,25 @@ type Bucket = {
 };
 
 const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 10_000;
+
+function pruneExpiredBuckets(now: number) {
+  if (buckets.size < MAX_BUCKETS) return;
+
+  for (const [key, bucket] of Array.from(buckets.entries())) {
+    if (bucket.resetAt <= now) buckets.delete(key);
+  }
+
+  if (buckets.size < MAX_BUCKETS) return;
+
+  const overflow = buckets.size - MAX_BUCKETS;
+  let removed = 0;
+  for (const key of Array.from(buckets.keys())) {
+    buckets.delete(key);
+    removed += 1;
+    if (removed >= overflow) break;
+  }
+}
 
 export class RateLimitError extends Error {
   constructor(public retryAfterSeconds: number) {
@@ -21,6 +40,7 @@ export async function getClientIp() {
 
 export function assertRateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();
+  pruneExpiredBuckets(now);
   const current = buckets.get(key);
 
   if (!current || current.resetAt <= now) {

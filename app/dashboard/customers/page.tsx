@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { Input, Select } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusAlert } from "@/components/StatusAlert";
 import { CustomerStatus, enumValues, type CustomerStatus as CustomerStatusValue } from "@/lib/enums";
 
 type CustomerSearchParams = {
@@ -41,12 +43,8 @@ export default async function CustomersPage({ searchParams }: { searchParams?: P
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">CRM</p>
-        <h1 className="mt-2 text-4xl font-black">Clientes y leads</h1>
-        <p className="mt-2 text-gray-500">Busca por nombre, teléfono o email y revisa historial comercial.</p>
-      </div>
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader eyebrow="CRM" title="Clientes y leads" description="Busca por nombre, teléfono o email y revisa historial comercial." />
+      <StatusAlert error={resolvedSearchParams?.error} />
       <Card className="mb-5">
         <form className="grid gap-3 md:grid-cols-[1fr_220px_auto]" action="/dashboard/customers">
           <Input name="q" defaultValue={q} placeholder="Buscar teléfono, email o nombre" />

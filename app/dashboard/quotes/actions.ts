@@ -13,6 +13,7 @@ import {
   assertTenantQuote,
   TenantAccessError
 } from "@/services/tenant-guard";
+import { assertQuotesAndOrdersAllowed, PlanAccessError } from "@/services/plan-guard";
 
 function parseDiscount(value: FormDataEntryValue | null) {
   const parsed = Number.parseInt(String(value ?? "0"), 10);
@@ -35,6 +36,7 @@ export async function createQuoteAction(formData: FormData) {
   if (rawItems.length === 0) redirect("/dashboard/quotes?error=Agrega al menos un producto");
 
   try {
+    await assertQuotesAndOrdersAllowed(business.id);
     if (customerId) await assertTenantCustomer(business.id, customerId);
     if (conversationId) await assertTenantConversation(business.id, conversationId);
 
@@ -85,6 +87,7 @@ export async function createQuoteAction(formData: FormData) {
       });
     }
   } catch (error) {
+    if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     if (error instanceof TenantAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     throw error;
   }
@@ -98,8 +101,15 @@ export async function updateQuoteStatusAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   const status = String(formData.get("status") || "");
   if (!enumValues(QuoteStatus).includes(status as QuoteStatusValue)) redirect("/dashboard/quotes?error=Estado inválido");
-  await assertTenantQuote(business.id, id);
-  await prisma.quote.update({ where: { id }, data: { status } });
+  try {
+    await assertQuotesAndOrdersAllowed(business.id);
+    await assertTenantQuote(business.id, id);
+    await prisma.quote.update({ where: { id }, data: { status } });
+  } catch (error) {
+    if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
+    if (error instanceof TenantAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
+    throw error;
+  }
   revalidatePath("/dashboard/quotes");
   redirect("/dashboard/quotes?success=Estado actualizado");
 }
@@ -109,6 +119,7 @@ export async function createOrderFromQuoteAction(formData: FormData) {
   const quoteId = String(formData.get("quoteId") || "");
 
   try {
+    await assertQuotesAndOrdersAllowed(business.id);
     await prisma.$transaction(async (tx) => {
       const quote = await tx.quote.findFirst({
         where: { id: quoteId, businessId: business.id },
@@ -155,6 +166,7 @@ export async function createOrderFromQuoteAction(formData: FormData) {
       });
     });
   } catch (error) {
+    if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     if (error instanceof TenantAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     throw error;
   }

@@ -5,7 +5,15 @@ import { ConversationStatus, CustomerStatus, ProductStatus } from "@/lib/enums";
 import { aiRequestSchema, aiResponseSchema, type AiResponsePayload } from "@/lib/validation";
 import { assertRateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 import { formatCLP, getFinalPrice } from "@/lib/format";
-import { searchRelevantProducts, type RelevantProduct } from "@/services/product-search";
+import { effectivePlanLimits } from "@/services/plan-guard";
+import { analyzeProductQuery, type ProductSearchAnalysis, type RelevantProduct } from "@/services/product-search";
+
+type ActiveConversation = {
+  id: string;
+  businessId: string;
+  customerId: string | null;
+  status: string;
+};
 
 function safeJsonParse(value: string) {
   try {
@@ -15,17 +23,117 @@ function safeJsonParse(value: string) {
   }
 }
 
-function demoReply(products: Awaited<ReturnType<typeof searchRelevantProducts>>, fallbackMessage: string) {
-  if (products.length === 0) {
-    return `${fallbackMessage} En modo demo no encontre productos activos relacionados en este catalogo.`;
+function formatStockForCustomer(stock: number) {
+  if (stock <= 0) return "por ahora aparece sin stock";
+  if (stock <= 3) return `queda poco stock (${stock} disponible${stock === 1 ? "" : "s"})`;
+  return `hay stock disponible (${stock})`;
+}
+
+function productLine(product: RelevantProduct) {
+  const description = product.description ? ` ${product.description.slice(0, 120)}` : "";
+  return `${product.name} a ${formatCLP(product.finalPrice)}; ${formatStockForCustomer(product.stock)}.${description}`;
+}
+
+function joinList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+function unavailableVariantLabel(analysis: ProductSearchAnalysis) {
+  const colors = joinList(analysis.unavailableColors);
+  if (!colors) return "esa variedad";
+  if (analysis.requestedProductLabel) return `${analysis.requestedProductLabel} en color ${colors}`;
+  return `productos en color ${colors}`;
+}
+
+function demoReply(products: RelevantProduct[], fallbackMessage: string, analysis?: ProductSearchAnalysis) {
+  if (analysis?.hasUnavailableRequestedVariant) {
+    const requestedVariant = unavailableVariantLabel(analysis);
+    const suggestions = products.slice(0, 3);
+
+    if (suggestions.length === 0) {
+      return `Por ahora no veo ${requestedVariant} en el catalogo. Si quieres, te ayudo a buscar otra alternativa disponible o puedo derivarte a WhatsApp para confirmar opciones especiales.`;
+    }
+
+    const suggestionLines = suggestions.map((product) => `- ${productLine(product)}`).join("\n");
+    return `Por ahora no veo ${requestedVariant} en el catalogo. Lo mas cercano que tengo disponible es:\n${suggestionLines}\n\n¿Te sirve alguna de estas opciones o prefieres que busquemos otro color o estilo?`;
   }
 
-  const productLines = products
-    .slice(0, 3)
-    .map((product) => `${product.name}: ${formatCLP(product.finalPrice)}${product.stock <= 0 ? " (sin stock disponible)" : ` (stock ${product.stock})`}`)
-    .join("; ");
+  if (analysis && !analysis.hasCatalogMatches && analysis.tokens.length > 0) {
+    const suggestions = products.slice(0, 3);
+    const requested = analysis.requestedProductLabel ?? "esa busqueda";
 
-  return `Modo demo sin API key activa. Del catalogo real puedo sugerirte: ${productLines}. Si quieres, dime presupuesto o uso y te ayudo a elegir.`;
+    if (suggestions.length === 0) {
+      return `Por ahora no encuentro ${requested} en el catalogo. Cuéntame un poco más qué buscas y revisamos una alternativa disponible.`;
+    }
+
+    const suggestionLines = suggestions.map((product) => `- ${productLine(product)}`).join("\n");
+    return `Por ahora no encuentro ${requested} exacto en el catalogo. Estas opciones sí están disponibles:\n${suggestionLines}\n\n¿Te sirve alguna o buscamos otra alternativa?`;
+  }
+
+  const productsForReply = analysis?.exactMatches.length ? analysis.exactMatches : products;
+
+  if (productsForReply.length === 0) {
+    return `${fallbackMessage} Si me cuentas que tipo de producto buscas, presupuesto o estilo, te ayudo a revisar las opciones disponibles del catalogo.`;
+  }
+
+  const selectedProducts = productsForReply.slice(0, 3);
+  if (selectedProducts.length === 1) {
+    const product = selectedProducts[0];
+    return `¡Sí! En el catalogo tengo ${productLine(product)} ¿Quieres que te ayude a confirmar si te sirve o prefieres que te sugiera otra alternativa similar?`;
+  }
+
+  const productSuggestions = selectedProducts.map((product) => `- ${productLine(product)}`).join("\n");
+  return `¡Claro! Te puedo ayudar con eso. Estas son las mejores opciones que veo ahora en el catalogo:\n${productSuggestions}\n\n¿Cuál te gusta más o qué estilo/precio tienes en mente?`;
+}
+
+function formatAvailabilityContext(analysis: ProductSearchAnalysis) {
+  const exactNames = analysis.exactMatches.map((product) => product.name).join(", ") || "Sin coincidencia exacta";
+  const alternatives = analysis.alternatives.map((product) => product.name).join(", ") || "Sin alternativas directas";
+  return `
+Analisis de disponibilidad del catalogo:
+- Producto solicitado: ${analysis.requestedProductLabel ?? "No especificado"}
+- Colores solicitados: ${analysis.requestedColors.join(", ") || "No especificados"}
+- Colores/variantes no disponibles: ${analysis.unavailableColors.join(", ") || "Ninguno detectado"}
+- Coincidencias exactas: ${exactNames}
+- Alternativas permitidas: ${alternatives}
+
+Reglas de verdad del catalogo:
+- Si hay colores o variedades no disponibles, dilo claramente primero.
+- No presentes una alternativa como si fuera la variante exacta solicitada.
+- Si no existe una polera azul, di que no se encuentra esa polera en azul y luego recomienda opciones reales.
+`;
+}
+
+function mentionsInternalDetails(reply: string) {
+  const forbiddenPatterns = [
+    /\bapi\b/i,
+    /api\s*key/i,
+    /modo\s*demo/i,
+    /deepseek/i,
+    /openai/i,
+    /backend/i,
+    /base\s+de\s+datos/i,
+    /\bjson\b/i,
+    /prompt/i,
+    /modelo\s+de\s+ia/i,
+    /configuraci[oó]n\s+interna/i
+  ];
+
+  return forbiddenPatterns.some((pattern) => pattern.test(reply));
+}
+
+function buildCustomerNotes(existingNotes: string | null, intent: string) {
+  const aiLine = `Ultima intencion IA: ${intent}`;
+  if (!existingNotes) return aiLine;
+
+  const preservedNotes = existingNotes
+    .split("\n")
+    .filter((line) => !line.startsWith("Ultima intencion IA:"))
+    .join("\n")
+    .trim();
+
+  return preservedNotes ? `${preservedNotes}\n${aiLine}` : aiLine;
 }
 
 function toRelevantProduct(product: {
@@ -73,7 +181,7 @@ export async function POST(req: Request) {
 
     const business = await prisma.business.findFirst({
       where: { slug: businessSlug, isActive: true },
-      include: { aiSettings: true, plan: true }
+      include: { aiSettings: true, plan: true, owner: true }
     });
 
     if (!business) {
@@ -93,30 +201,13 @@ export async function POST(req: Request) {
       focusedProduct = toRelevantProduct(product);
     }
 
-    const searchedProducts = await searchRelevantProducts(business.id, customerMessage, focusedProduct ? 7 : 8);
+    const searchAnalysis = await analyzeProductQuery(business.id, customerMessage, focusedProduct ? 7 : 8);
+    const searchedProducts = searchAnalysis.exactMatches.length > 0 ? searchAnalysis.exactMatches : searchAnalysis.recommendedProducts;
     const relevantProducts = focusedProduct
       ? [focusedProduct, ...searchedProducts.filter((product) => product.id !== focusedProduct?.id)]
       : searchedProducts;
 
-    let customer =
-      settings?.allowAutoLead === false
-        ? null
-        : customerPhone
-          ? await prisma.customer.findFirst({ where: { businessId: business.id, phone: customerPhone } })
-          : null;
-
-    if (!customer && settings?.allowAutoLead !== false) {
-      customer = await prisma.customer.create({
-        data: {
-          businessId: business.id,
-          phone: customerPhone || null,
-          source: "webchat",
-          status: CustomerStatus.NEW
-        }
-      });
-    }
-
-    let conversation = null;
+    let conversation: ActiveConversation | null = null;
     if (conversationId) {
       const existingConversation = await prisma.conversation.findFirst({
         where: { id: conversationId, businessId: business.id },
@@ -143,11 +234,20 @@ export async function POST(req: Request) {
       });
     }
 
+    let customer =
+      settings?.allowAutoLead === false
+        ? null
+        : conversation?.customerId
+          ? await prisma.customer.findFirst({ where: { id: conversation.customerId, businessId: business.id } })
+          : customerPhone
+            ? await prisma.customer.findFirst({ where: { businessId: business.id, phone: customerPhone } })
+            : null;
+
     if (!conversation) {
       const monthStart = new Date();
       monthStart.setDate(1);
       monthStart.setHours(0, 0, 0, 0);
-      const monthlyLimit = business.plan?.maxAiConversationsMonthly ?? 100;
+      const monthlyLimit = effectivePlanLimits(business.plan, business.owner).maxAiConversationsMonthly ?? 100;
       const usedThisMonth = await prisma.conversation.count({
         where: { businessId: business.id, channel: "WEBCHAT", createdAt: { gte: monthStart } }
       });
@@ -166,7 +266,20 @@ export async function POST(req: Request) {
         },
         select: { id: true, businessId: true, customerId: true, status: true }
       });
-    } else if (customer && !conversation.customerId) {
+    }
+
+    if (!customer && settings?.allowAutoLead !== false) {
+      customer = await prisma.customer.create({
+        data: {
+          businessId: business.id,
+          phone: customerPhone || null,
+          source: "webchat",
+          status: CustomerStatus.NEW
+        }
+      });
+    }
+
+    if (customer && !conversation.customerId) {
       conversation = await prisma.conversation.update({
         where: { id: conversation.id },
         data: { customerId: customer.id },
@@ -198,7 +311,7 @@ export async function POST(req: Request) {
       .join("\n");
 
     let aiResult: AiResponsePayload = {
-      reply: demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta."),
+      reply: demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis),
       intent: "unknown",
       lead_score: 0,
       customer_status: CustomerStatus.NEW,
@@ -208,30 +321,36 @@ export async function POST(req: Request) {
 
     if (hasDeepSeekKey()) {
       const systemPrompt = `
-Eres el vendedor IA de la tienda "${business.name}".
+Eres un vendedor profesional y amigable de la tienda "${business.name}". Tu objetivo es ayudar a los clientes a encontrar exactamente lo que necesitan.
 
-Reglas obligatorias:
-- Usa solo informacion de esta tienda.
-- Usa solo el catalogo entregado por el backend, ya filtrado por businessId.
-- Nunca inventes productos, precios, stock, descuentos, garantias, despacho ni tiempos de entrega.
-- Si falta informacion, pregunta.
-- Si no sabes, usa el fallback.
-- allowAutoLead: ${settings?.allowAutoLead !== false ? "true" : "false"}.
-- humanHandoffEnabled: ${settings?.humanHandoffEnabled !== false ? "true" : "false"}.
-- Producto consultado explicitamente: ${focusedProduct ? `${focusedProduct.name} (${focusedProduct.id})` : "ninguno"}.
+INSTRUCCIONES CLAVE:
+1. Sé conversacional, cálido y entusiasta - como un vendedor real hablando con un cliente
+2. Usa solo información del catálogo disponible en este mensaje
+3. NUNCA inventes productos, precios, stock, descuentos, garantías o tiempos de entrega
+4. Si un cliente pregunta algo que no sabes, pregunta más para entender su necesidad
+5. Sugiere productos de forma natural, no como una lista fría
+6. Haz preguntas de seguimiento para entender mejor qué busca el cliente
+7. Si algo no está en el catálogo, sé honesto: "No tengo ese modelo en este momento"
+8. Nunca menciones API, API key, modo demo, backend, base de datos, sistema, prompt, JSON, modelo de IA ni configuración interna.
+9. No digas que eres una IA. Habla como asesor/vendedor de la tienda.
+10. Si no puedes confirmar algo, ofrece derivar a WhatsApp o a una persona del equipo.
+11. Si el análisis indica que no existe una variante, talla, color o producto solicitado, dilo primero y luego ofrece alternativas reales del catálogo.
+12. No conviertas alternativas en coincidencias exactas. Ejemplo: si piden polera azul y solo hay rosada, di que azul no está disponible y ofrece la rosada como alternativa.
 
-Tono:
-${settings?.tone ?? "profesional y claro"}
+ATRIBUTOS DE VENTA:
+- Sé empático y comprensivo
+- Escucha activamente lo que el cliente busca
+- Recomienda productos basado en necesidad real, no en cantidad
+- Sé breve pero informativo en cada respuesta
 
-Instrucciones especiales:
-${settings?.instructions ?? "Sin instrucciones especiales"}
+Tu nombre es: Asesor de ventas de ${business.name}
+Tono: ${settings?.tone ?? "amigable, profesional y servicial"}
 
-Fallback:
-${settings?.fallbackMessage ?? "No tengo esa informacion exacta. Te puedo derivar con una persona."}
+${settings?.instructions ? `Instrucciones especiales del negocio:\n${settings?.instructions}` : ""}
 
-Devuelve SOLO JSON valido:
+Devuelve SOLO JSON válido, SIN explicaciones:
 {
-  "reply": "respuesta final para el cliente",
+  "reply": "Tu respuesta amigable como vendedor real",
   "intent": "general_question | product_interest | purchase_interest | support | unknown",
   "lead_score": 0,
   "customer_status": "NEW | INTERESTED | QUOTE_SENT | PAYMENT_PENDING | WON | LOST | FOLLOW_UP",
@@ -250,24 +369,35 @@ ${history}
 
 Productos disponibles de ESTA tienda:
 ${catalogContext || "No hay productos activos relacionados encontrados."}
+
+${formatAvailabilityContext(searchAnalysis)}
 `;
 
-      const completion = await deepseek.chat.completions.create({
-        model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.25
-      });
+      try {
+        const completion = await deepseek.chat.completions.create({
+          model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.25
+        });
 
-      const raw = completion.choices[0]?.message?.content || "";
-      const parsedAi = aiResponseSchema.safeParse(safeJsonParse(raw));
-      if (parsedAi.success) {
-        aiResult = parsedAi.data;
-      } else {
-        aiResult.reply = settings?.fallbackMessage ?? aiResult.reply;
+        const raw = completion.choices[0]?.message?.content || "";
+        const parsedAi = aiResponseSchema.safeParse(safeJsonParse(raw));
+        if (parsedAi.success) {
+          aiResult = parsedAi.data;
+        } else {
+          aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+          aiResult.intent = focusedProduct ? "product_interest" : "general_question";
+        }
+      } catch {
+        aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+        aiResult.intent = focusedProduct ? "product_interest" : "general_question";
+        aiResult.lead_score = focusedProduct ? 60 : 35;
+        aiResult.customer_status = focusedProduct ? CustomerStatus.INTERESTED : CustomerStatus.NEW;
+        aiResult.next_action = settings?.humanHandoffEnabled === false ? "ask_more" : "human_handoff";
       }
     }
 
@@ -276,6 +406,18 @@ ${catalogContext || "No hay productos activos relacionados encontrados."}
     if (aiResult.next_action === "human_handoff" && settings?.humanHandoffEnabled === false) {
       aiResult.next_action = "ask_more";
     }
+    if (searchAnalysis.hasUnavailableRequestedVariant) {
+      aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+      aiResult.intent = "product_interest";
+      aiResult.lead_score = Math.max(aiResult.lead_score, 45);
+      aiResult.customer_status = CustomerStatus.INTERESTED;
+      aiResult.recommended_product_ids = relevantProducts.slice(0, 3).map((product) => product.id);
+      aiResult.next_action = settings?.humanHandoffEnabled === false ? "ask_more" : "human_handoff";
+    }
+    if (mentionsInternalDetails(aiResult.reply)) {
+      aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+      aiResult.intent = focusedProduct ? "product_interest" : "general_question";
+    }
 
     if (customer) {
       await prisma.customer.update({
@@ -283,7 +425,7 @@ ${catalogContext || "No hay productos activos relacionados encontrados."}
         data: {
           status: aiResult.customer_status,
           leadScore: aiResult.lead_score,
-          notes: `Ultima intencion IA: ${aiResult.intent}`
+          notes: buildCustomerNotes(customer.notes, aiResult.intent)
         }
       });
     }
@@ -311,9 +453,15 @@ ${catalogContext || "No hay productos activos relacionados encontrados."}
       }
     });
 
-    if (relevantProducts.length > 0) {
+    const consultedProductIds = aiResult.recommended_product_ids.length > 0
+      ? aiResult.recommended_product_ids
+      : focusedProduct
+        ? [focusedProduct.id]
+        : searchAnalysis.exactMatches.map((product) => product.id);
+
+    if (consultedProductIds.length > 0) {
       await prisma.product.updateMany({
-        where: { businessId: business.id, id: { in: relevantProducts.map((product) => product.id) } },
+        where: { businessId: business.id, id: { in: consultedProductIds } },
         data: { aiConsultCount: { increment: 1 } }
       });
     }

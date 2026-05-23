@@ -12,15 +12,17 @@ datasource db {
 // When migrating to PostgreSQL/Supabase, these String fields can be converted to native Prisma enums.
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   name         String
   passwordHash String
-  role         String    @default("USER")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  role         String     @default("USER")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   sessions     Session[]
   businesses   Business[]
+  memberships  Membership[]
+  auditLogs     AuditLog[]
 }
 
 model Session {
@@ -33,43 +35,95 @@ model Session {
 }
 
 model Business {
-  id              String          @id @default(cuid())
-  ownerId         String
-  owner           User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  planId          String?
-  plan            Plan?           @relation(fields: [planId], references: [id], onDelete: SetNull)
-  planType        String          @default("FREE")
-  name            String
-  slug            String          @unique
-  description     String?
-  logoUrl         String?
-  bannerUrl       String?
-  catalogTemplate String          @default("MODERN_GRID")
-  primaryColor    String          @default("#111827")
-  secondaryColor  String          @default("#F9FAFB")
-  accentColor     String          @default("#E11D48")
-  backgroundColor String          @default("#F8FAFC")
-  textColor       String          @default("#111827")
-  buttonRadius    Int             @default(18)
-  whatsappNumber  String?
-  instagramUrl    String?
-  businessType    String?
-  address         String?
-  currency        String          @default("CLP")
-  isActive        Boolean         @default(true)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  categories      Category[]
-  products        Product[]
-  customers       Customer[]
-  conversations   Conversation[]
-  quotes          Quote[]
-  orders          Order[]
-  aiSettings      AiSettings?
-  subscription    Subscription?
+  id                String         @id @default(cuid())
+  ownerId           String
+  owner             User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  planId            String?
+  plan              Plan?          @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planType          String         @default("FREE")
+  name              String
+  dashboardTitle    String?
+  dashboardSubtitle String?
+  slug              String         @unique
+  publicSlug        String         @unique
+  description       String?
+  logoUrl           String?
+  bannerUrl         String?
+  catalogTemplate   String         @default("MODERN_GRID")
+  primaryColor      String         @default("#111827")
+  secondaryColor    String         @default("#F9FAFB")
+  accentColor       String         @default("#E11D48")
+  backgroundColor   String         @default("#F8FAFC")
+  textColor         String         @default("#111827")
+  buttonRadius      Int            @default(18)
+  whatsappNumber    String?
+  instagramUrl      String?
+  businessType      String?
+  address           String?
+  currency          String         @default("CLP")
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  categories        Category[]
+  products          Product[]
+  customers         Customer[]
+  conversations     Conversation[]
+  quotes            Quote[]
+  orders            Order[]
+  aiSettings        AiSettings?
+  subscription      Subscription?
+  memberships       Membership[]
+  slugHistory       BusinessSlugHistory[]
+  auditLogs         AuditLog[]
 
   @@index([ownerId])
   @@index([planId])
+  @@index([publicSlug, isActive])
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  role       String   @default("STORE_OWNER")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+  @@index([userId])
+}
+
+model BusinessSlugHistory {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  slug       String   @unique
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  businessId   String?
+  business     Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Plan {
@@ -89,19 +143,19 @@ model Plan {
 }
 
 model Subscription {
-  id                     String             @id @default(cuid())
-  businessId             String             @unique
-  business               Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  businessId             String    @unique
+  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   planId                 String
-  plan                   Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
-  status                 String             @default("TRIALING")
-  currentPeriodStart     DateTime           @default(now())
+  plan                   Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status                 String    @default("TRIALING")
+  currentPeriodStart     DateTime  @default(now())
   currentPeriodEnd       DateTime?
   provider               String?
   providerCustomerId     String?
   providerSubscriptionId String?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   @@index([planId])
   @@index([status])
@@ -122,30 +176,32 @@ model Category {
 }
 
 model Product {
-  id              String        @id @default(cuid())
-  businessId      String
-  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  categoryId      String?
-  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  name            String
-  slug            String
-  sku             String?
-  description     String?
-  price           Int
-  compareAtPrice  Int?
-  costPrice       Int?
-  discountPercent Int           @default(0)
-  stock           Int           @default(0)
-  minStock        Int           @default(0)
-  imageUrl        String?
-  tags            String?
-  status          String        @default("ACTIVE")
-  featured        Boolean       @default(false)
-  aiConsultCount  Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  quoteItems      QuoteItem[]
-  orderItems      OrderItem[]
+  id                 String      @id @default(cuid())
+  businessId         String
+  business           Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId         String?
+  category           Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name               String
+  slug               String
+  sku                String?
+  description        String?
+  price              Int
+  compareAtPrice     Int?
+  costPrice          Int?
+  discountPercent    Int         @default(0)
+  stock              Int         @default(0)
+  minStock           Int         @default(0)
+  imageUrl           String?
+  tags               String?
+  status             String      @default("ACTIVE")
+  featured           Boolean     @default(false)
+  aiConsultCount     Int         @default(0)
+  productViewCount   Int         @default(0)
+  whatsappClickCount Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  quoteItems         QuoteItem[]
+  orderItems         OrderItem[]
 
   @@unique([businessId, slug])
   @@index([businessId])
@@ -177,17 +233,17 @@ model Customer {
 }
 
 model Conversation {
-  id            String             @id @default(cuid())
+  id            String    @id @default(cuid())
   businessId    String
-  business      Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId    String?
-  customer      Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  channel       String             @default("WEBCHAT")
-  status        String             @default("OPEN")
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  channel       String    @default("WEBCHAT")
+  status        String    @default("OPEN")
   visitorId     String?
   lastMessageAt DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   messages      Message[]
   quotes        Quote[]
 

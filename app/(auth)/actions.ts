@@ -2,9 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { createSession, destroySession, hashPassword, verifyPassword } from "@/lib/auth";
+import { createSession, destroySession, hashPassword, hasPlatformAccess, verifyPassword } from "@/lib/auth";
 import { slugify } from "@/lib/format";
-import { getFreePlan } from "@/lib/plans";
+import { getFreePlan, getPlanByType } from "@/lib/plans";
+import { PlanType, UserRole } from "@/lib/enums";
 import { assertRateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 import { loginSchema, registerSchema } from "@/lib/validation";
 
@@ -58,30 +59,33 @@ export async function registerAction(formData: FormData) {
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) redirect("/register?error=Ese email ya está registrado");
 
-  const baseSlug = slugify(businessName);
+  const baseSlug = slugify(businessName) || "tienda";
   let slug = baseSlug;
   let counter = 2;
   while (await prisma.business.findUnique({ where: { slug } })) {
     slug = `${baseSlug}-${counter++}`;
   }
 
-  const freePlan = await getFreePlan();
+  const isPlatformOwner = hasPlatformAccess({ email, role: UserRole.USER });
+  const defaultPlan = isPlatformOwner ? await getPlanByType(PlanType.BUSINESS) : await getFreePlan();
   const user = await prisma.user.create({
     data: {
       name,
       email,
+      role: isPlatformOwner ? UserRole.PLATFORM_ADMIN : UserRole.USER,
       passwordHash: await hashPassword(password),
       businesses: {
         create: {
-          planId: freePlan.id,
-          planType: freePlan.type,
+          planId: defaultPlan.id,
+          planType: defaultPlan.type,
           name: businessName,
           slug,
           businessType,
           description: `Catálogo oficial de ${businessName}`,
           subscription: {
             create: {
-              planId: freePlan.id
+              planId: defaultPlan.id,
+              status: isPlatformOwner ? "ACTIVE" : "TRIALING"
             }
           },
           aiSettings: {

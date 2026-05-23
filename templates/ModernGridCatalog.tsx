@@ -1,5 +1,6 @@
 import { CatalogControls } from "@/components/catalog/CatalogControls";
 import { EmptyCatalogState } from "@/components/catalog/EmptyCatalogState";
+import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { StoreChat } from "@/components/StoreChat";
@@ -10,6 +11,7 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
 
   return (
     <main className="min-h-screen" style={themeStyle}>
+      <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
       <section className="relative overflow-hidden bg-[var(--catalog-primary)] text-white">
         <SafeImage src={heroImage} fallback={defaultProductImage} alt={business.name} className="absolute inset-0 h-full w-full object-cover opacity-30" />
         <div className="relative mx-auto grid max-w-7xl gap-8 px-6 py-14 lg:grid-cols-[1fr_380px] lg:items-end">
@@ -23,6 +25,7 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
             </div>
           </div>
           <div className="rounded-[var(--catalog-radius)] bg-white/95 p-4 text-[var(--catalog-text)] shadow-xl">
+            <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-gray-400">Encuentra rapido</p>
             <CatalogControls categories={categories} searchState={searchState} compact />
           </div>
         </div>

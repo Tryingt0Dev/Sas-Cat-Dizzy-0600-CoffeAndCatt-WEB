@@ -3,11 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { getCurrentBusinessContext } from "@/lib/auth";
 import { getFinalPrice, slugify } from "@/lib/format";
 import { ProductStatus } from "@/lib/enums";
-import { productFormSchema } from "@/lib/validation";
+import { imageUrlBelongsToBusiness, productFormSchema } from "@/lib/validation";
+import { effectivePlanLimits } from "@/services/plan-guard";
 import { assertTenantProduct, resolveTenantCategoryId, TenantAccessError } from "@/services/tenant-guard";
+
+type ProductLimitUser = {
+  email: string;
+  role: string;
+};
 
 function nullableInt(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
@@ -51,12 +57,12 @@ async function uniqueProductSlug(businessId: string, name: string, currentProduc
   }
 }
 
-async function assertProductLimit(businessId: string) {
+async function assertProductLimit(businessId: string, user: ProductLimitUser) {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
     include: { plan: true }
   });
-  const maxProducts = business?.plan?.maxProducts ?? 25;
+  const maxProducts = effectivePlanLimits(business?.plan, user).maxProducts ?? 25;
   const totalProducts = await prisma.product.count({ where: { businessId } });
   if (totalProducts >= maxProducts) {
     redirect("/dashboard/products?error=Límite de productos alcanzado para tu plan");
@@ -64,11 +70,14 @@ async function assertProductLimit(businessId: string) {
 }
 
 export async function createProductAction(formData: FormData) {
-  const business = await getCurrentBusiness();
-  await assertProductLimit(business.id);
+  const { user, business } = await getCurrentBusinessContext();
+  await assertProductLimit(business.id, user);
 
   const parsed = productPayloadFromForm(formData);
   if (!parsed.success) redirect("/dashboard/products?error=Revisa los datos del producto");
+  if (!imageUrlBelongsToBusiness(parsed.data.imageUrl, business.id)) {
+    redirect("/dashboard/products?error=La imagen no pertenece a esta tienda");
+  }
 
   try {
     const categoryId = await resolveTenantCategoryId(business.id, parsed.data.categoryId);
@@ -105,12 +114,15 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { business } = await getCurrentBusinessContext();
   const id = String(formData.get("id") || "");
   if (!id) redirect("/dashboard/products?error=Producto no encontrado");
 
   const parsed = productPayloadFromForm(formData);
   if (!parsed.success) redirect("/dashboard/products?error=Revisa los datos del producto");
+  if (!imageUrlBelongsToBusiness(parsed.data.imageUrl, business.id)) {
+    redirect("/dashboard/products?error=La imagen no pertenece a esta tienda");
+  }
 
   try {
     const product = await assertTenantProduct(business.id, id);
@@ -148,8 +160,8 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function duplicateProductAction(formData: FormData) {
-  const business = await getCurrentBusiness();
-  await assertProductLimit(business.id);
+  const { user, business } = await getCurrentBusinessContext();
+  await assertProductLimit(business.id, user);
   const id = String(formData.get("id") || "");
 
   try {
@@ -188,7 +200,7 @@ export async function duplicateProductAction(formData: FormData) {
 }
 
 export async function deleteProductAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { business } = await getCurrentBusinessContext();
   const id = String(formData.get("id") || "");
   if (!id) redirect("/dashboard/products?error=Producto inválido");
   await assertTenantProduct(business.id, id);
@@ -199,7 +211,7 @@ export async function deleteProductAction(formData: FormData) {
 }
 
 export async function quickDiscountAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { business } = await getCurrentBusinessContext();
   const id = String(formData.get("id") || "");
   const product = await assertTenantProduct(business.id, id);
   const finalPrice = getFinalPrice(product.price, product.discountPercent);

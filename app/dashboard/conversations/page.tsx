@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function ConversationsPage() {
   const business = await getCurrentBusiness();
@@ -16,10 +17,7 @@ export default async function ConversationsPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Mensajes</p>
-        <h1 className="mt-2 text-4xl font-black">Conversaciones</h1>
-      </div>
+      <PageHeader eyebrow="Mensajes" title="Conversaciones" description="Revisa las últimas consultas del catálogo y el historial que deja el vendedor IA." />
       <div className="space-y-4">
         {conversations.map((conversation) => (
           <Card key={conversation.id}>

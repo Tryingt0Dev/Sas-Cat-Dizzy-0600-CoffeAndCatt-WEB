@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+type AskAiStatus = "idle" | "sending" | "missing-chat";
+
 export function AskAiButton({
   productId,
   question,
@@ -11,14 +13,26 @@ export function AskAiButton({
   question: string;
   className: string;
 }) {
-  const [clicked, setClicked] = useState(false);
+  const [status, setStatus] = useState<AskAiStatus>("idle");
+
+  function resetSoon() {
+    window.setTimeout(() => setStatus("idle"), 1600);
+  }
 
   return (
     <button
       type="button"
       className={className}
+      disabled={status === "sending"}
       onClick={() => {
-        setClicked(true);
+        const chat = document.getElementById("store-ai-chat");
+        if (!chat) {
+          setStatus("missing-chat");
+          resetSoon();
+          return;
+        }
+
+        setStatus("sending");
         window.dispatchEvent(
           new CustomEvent("storechat:ask", {
             detail: {
@@ -28,11 +42,11 @@ export function AskAiButton({
             }
           })
         );
-        document.getElementById("store-ai-chat")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        window.setTimeout(() => setClicked(false), 1400);
+        chat.scrollIntoView({ behavior: "smooth", block: "start" });
+        resetSoon();
       }}
     >
-      {clicked ? "Consultando IA..." : "Consultar IA"}
+      {status === "missing-chat" ? "Chat no disponible" : status === "sending" ? "Consultando IA..." : "Consultar IA"}
     </button>
   );
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth";
 import { Card } from "@/components/Card";
+import { planDisplayName } from "@/services/plan-guard";
 import { toggleBusinessActiveAction } from "./actions";
 
 export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
@@ -60,7 +61,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
                   <tr key={business.id} className="border-b border-gray-100">
                     <td className="py-4 font-semibold">{business.name}<br /><span className="text-xs text-gray-400">/{business.slug}</span></td>
                     <td>{business.owner.email}</td>
-                    <td>{business.plan?.name ?? business.planType}</td>
+                    <td>{planDisplayName(business.plan, business.owner)}</td>
                     <td>{business.isActive ? "Activa" : "Suspendida"}</td>
                     <td>{business._count.products}</td>
                     <td>{business._count.conversations}</td>

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusAlert } from "@/components/StatusAlert";
 import { createCategoryAction, deleteCategoryAction } from "./actions";
 
 export default async function CategoriesPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
@@ -15,12 +17,8 @@ export default async function CategoriesPage({ searchParams }: { searchParams?: 
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Catálogo</p>
-        <h1 className="mt-2 text-4xl font-black">Categorías</h1>
-      </div>
-      {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader eyebrow="Catálogo" title="Categorías" description="Ordena productos para que tus clientes encuentren rápido lo que buscan." />
+      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <Card>
           <h2 className="text-xl font-black">Nueva categoría</h2>

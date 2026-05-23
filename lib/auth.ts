@@ -6,6 +6,24 @@ import { prisma } from "@/lib/db";
 import { UserRole } from "@/lib/enums";
 
 const SESSION_COOKIE = "catg_session";
+const PLATFORM_OWNER_EMAIL_KEYS = ["PLATFORM_OWNER_EMAILS", "PLATFORM_ADMIN_EMAILS", "OWNER_EMAILS", "ADMIN_EMAIL"] as const;
+
+type UserAccessIdentity = {
+  email: string;
+  role: string;
+};
+
+function configuredPlatformOwnerEmails() {
+  return PLATFORM_OWNER_EMAIL_KEYS.flatMap((key) => (process.env[key] ?? "").split(","))
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function hasPlatformAccess(user: UserAccessIdentity | null | undefined) {
+  if (!user) return false;
+  if (user.role === UserRole.PLATFORM_ADMIN) return true;
+  return configuredPlatformOwnerEmails().includes(user.email.toLowerCase());
+}
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -67,16 +85,21 @@ export async function requireUser() {
 
 export async function requirePlatformAdmin() {
   const user = await requireUser();
-  if (user.role !== UserRole.PLATFORM_ADMIN) redirect("/dashboard");
+  if (!hasPlatformAccess(user)) redirect("/dashboard");
   return user;
 }
 
-export async function getCurrentBusiness() {
+export async function getCurrentBusinessContext() {
   const user = await requireUser();
   const business = await prisma.business.findFirst({
     where: { ownerId: user.id, isActive: true },
     orderBy: { createdAt: "asc" }
   });
   if (!business) redirect("/login?error=No tienes una tienda activa o tu tienda está suspendida");
+  return { user, business };
+}
+
+export async function getCurrentBusiness() {
+  const { business } = await getCurrentBusinessContext();
   return business;
 }

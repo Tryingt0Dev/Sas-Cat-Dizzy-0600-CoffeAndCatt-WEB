@@ -1,0 +1,18 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Cliente as Cliente final
+    participant Store as /store/[slug]
+    participant DB as Prisma
+    participant Template as Catalog template
+
+    Cliente->>Store: Abre URL publica
+    Store->>DB: Busca Business activo por slug
+    DB-->>Store: Branding, IA settings, categorias
+    Store->>DB: Busca productos ACTIVE por businessId
+    DB-->>Store: Productos filtrados y ordenados
+    Store->>Template: Renderiza MODERN_GRID, BOUTIQUE_PREMIUM, FAST_SALES o TECH_PRO
+    Template-->>Cliente: Hero, filtros, destacados, cards, WhatsApp y chat
+    Cliente->>Store: Cambia busqueda, categoria u orden
+    Store->>DB: Reconsulta con searchParams
+    Store-->>Cliente: Resultados actualizados

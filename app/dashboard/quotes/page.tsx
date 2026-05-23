@@ -4,6 +4,8 @@ import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { CopyButton } from "@/components/CopyButton";
 import { Input, Select, Textarea } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusAlert } from "@/components/StatusAlert";
 import { formatCLP } from "@/lib/format";
 import { ProductStatus, QuoteStatus } from "@/lib/enums";
 import { createOrderFromQuoteAction, createQuoteAction, updateQuoteStatusAction } from "./actions";
@@ -35,13 +37,12 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Ventas</p>
-        <h1 className="mt-2 text-4xl font-black">Cotizaciones</h1>
-        <p className="mt-2 text-gray-500">Crea propuestas desde clientes o conversaciones y conviértelas en pedidos aceptados.</p>
-      </div>
-      {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader
+        eyebrow="Ventas"
+        title="Cotizaciones"
+        description="Crea propuestas desde clientes o conversaciones y conviértelas en pedidos aceptados."
+      />
+      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
 
       <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
         <Card>

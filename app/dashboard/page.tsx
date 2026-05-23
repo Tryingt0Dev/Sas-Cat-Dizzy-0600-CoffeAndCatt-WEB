@@ -2,6 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { PageHeader } from "@/components/PageHeader";
+import { StoreShareCard } from "@/components/StoreShareCard";
 import { formatCLP } from "@/lib/format";
 import { ConversationStatus, CustomerStatus, OrderStatus, ProductStatus, QuoteStatus } from "@/lib/enums";
 
@@ -23,8 +26,12 @@ export default async function DashboardPage() {
     openConversations,
     sentQuotes,
     pendingOrders,
+    categoryCount,
+    featuredProductCount,
     products,
     topConsultedProducts,
+    topViewedProducts,
+    topWhatsappProducts,
     latestConversations,
     aiMessages
   ] = await Promise.all([
@@ -33,10 +40,22 @@ export default async function DashboardPage() {
     prisma.conversation.count({ where: { businessId: business.id, status: { in: [ConversationStatus.OPEN, ConversationStatus.WAITING_HUMAN] } } }),
     prisma.quote.count({ where: { businessId: business.id, status: QuoteStatus.SENT } }),
     prisma.order.count({ where: { businessId: business.id, status: OrderStatus.PENDING } }),
+    prisma.category.count({ where: { businessId: business.id } }),
+    prisma.product.count({ where: { businessId: business.id, featured: true } }),
     prisma.product.findMany({ where: { businessId: business.id } }),
     prisma.product.findMany({
       where: { businessId: business.id, aiConsultCount: { gt: 0 } },
       orderBy: { aiConsultCount: "desc" },
+      take: 5
+    }),
+    prisma.product.findMany({
+      where: { businessId: business.id, productViewCount: { gt: 0 } },
+      orderBy: { productViewCount: "desc" },
+      take: 5
+    }),
+    prisma.product.findMany({
+      where: { businessId: business.id, whatsappClickCount: { gt: 0 } },
+      orderBy: { whatsappClickCount: "desc" },
       take: 5
     }),
     prisma.conversation.findMany({
@@ -53,6 +72,8 @@ export default async function DashboardPage() {
   ]);
 
   const stockValue = products.reduce((acc, product) => acc + product.price * product.stock, 0);
+  const totalProductViews = products.reduce((acc, product) => acc + product.productViewCount, 0);
+  const totalWhatsappClicks = products.reduce((acc, product) => acc + product.whatsappClickCount, 0);
   const lowStockProducts = products
     .filter((product) => product.status === ProductStatus.ACTIVE && product.stock <= Math.max(product.minStock, 3))
     .sort((a, b) => a.stock - b.stock)
@@ -66,15 +87,124 @@ export default async function DashboardPage() {
     ["Conversaciones abiertas", openConversations],
     ["Cotizaciones enviadas", sentQuotes],
     ["Pedidos pendientes", pendingOrders],
-    ["Stock bajo", lowStockProducts.length]
+    ["Stock bajo", lowStockProducts.length],
+    ["Vistas de productos", totalProductViews],
+    ["Clicks WhatsApp", totalWhatsappClicks]
+  ];
+  const onboardingItems = [
+    {
+      label: "Configura WhatsApp",
+      description: "Activa el canal principal de cierre comercial.",
+      href: "/dashboard/settings",
+      done: Boolean(business.whatsappNumber)
+    },
+    {
+      label: "Sube logo o banner",
+      description: "Haz que el catalogo se sienta propio y confiable.",
+      href: "/dashboard/settings",
+      done: Boolean(business.logoUrl || business.bannerUrl)
+    },
+    {
+      label: "Crea productos",
+      description: "Publica al menos un producto activo.",
+      href: "/dashboard/products",
+      done: activeProducts > 0
+    },
+    {
+      label: "Crea categorias",
+      description: "Ayuda al cliente a encontrar rapido lo que busca.",
+      href: "/dashboard/categories",
+      done: categoryCount > 0
+    },
+    {
+      label: "Destaca un producto",
+      description: "Muestra una oferta o producto recomendado primero.",
+      href: "/dashboard/products",
+      done: featuredProductCount > 0
+    },
+    {
+      label: "Prueba el vendedor IA",
+      description: "Envia una consulta desde el catalogo publico.",
+      href: `/store/${business.slug}`,
+      done: aiMessages.length > 0 || openConversations > 0
+    }
+  ];
+  const dashboardTitle = business.dashboardTitle || `Gestión de ${business.name}`;
+  const dashboardDescription = business.dashboardSubtitle || "Métricas comerciales, acciones rápidas y señales de operación separadas por tienda.";
+  const healthItems = [
+    { label: "WhatsApp", done: Boolean(business.whatsappNumber), hint: business.whatsappNumber ? "Listo para cerrar ventas" : "Configúralo para recibir consultas" },
+    { label: "Catálogo", done: activeProducts > 0, hint: activeProducts > 0 ? `${activeProducts} productos activos` : "Publica tu primer producto" },
+    { label: "Branding", done: Boolean(business.logoUrl || business.bannerUrl), hint: business.logoUrl || business.bannerUrl ? "Identidad visual cargada" : "Sube logo o banner" },
+    { label: "IA", done: aiMessages.length > 0, hint: aiMessages.length > 0 ? "Ya recibió consultas" : "Prueba el vendedor IA" }
+  ];
+  const quickActions = [
+    { label: "Nuevo producto", description: "Agrega inventario con foto, precio y stock.", href: "/dashboard/products" },
+    { label: "Ver catálogo", description: "Revisa la experiencia pública del cliente.", href: `/store/${business.slug}`, external: true },
+    { label: "Personalizar panel", description: "Cambia nombre interno, colores, logo e IA.", href: "/dashboard/settings" },
+    { label: "Revisar leads", description: "Atiende clientes nuevos y conversaciones abiertas.", href: "/dashboard/customers" }
   ];
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Dashboard</p>
-        <h1 className="mt-2 text-4xl font-black">Gestión de {business.name}</h1>
-        <p className="mt-2 text-gray-500">Métricas reales separadas por tienda mediante businessId.</p>
+      <PageHeader
+        eyebrow="Dashboard"
+        title={dashboardTitle}
+        description={dashboardDescription}
+        actions={
+          <>
+            <Link href={`/store/${business.slug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+              Ver catálogo
+            </Link>
+            <Link href="/dashboard/settings" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white shadow-sm">
+              Personalizar
+            </Link>
+          </>
+        }
+      />
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_360px]">
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Acciones rápidas</p>
+              <h2 className="mt-1 text-xl font-black">Lo más usado para operar la tienda</h2>
+            </div>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.slug}</span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {quickActions.map((action) => (
+              <Link
+                key={action.label}
+                href={action.href}
+                target={action.external ? "_blank" : undefined}
+                className="rounded-2xl border border-gray-100 bg-gray-50 p-4 transition hover:border-gray-300 hover:bg-white hover:shadow-sm"
+              >
+                <p className="font-black text-gray-950">{action.label}</p>
+                <p className="mt-1 text-sm leading-5 text-gray-500">{action.description}</p>
+              </Link>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Estado de tienda</p>
+          <div className="mt-4 space-y-3">
+            {healthItems.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-2xl bg-gray-50 p-3">
+                <span className={item.done ? "mt-1 h-3 w-3 rounded-full bg-emerald-500" : "mt-1 h-3 w-3 rounded-full bg-amber-400"} />
+                <div>
+                  <p className="text-sm font-black text-gray-900">{item.label}</p>
+                  <p className="text-xs text-gray-500">{item.hint}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <OnboardingChecklist items={onboardingItems} />
+        <StoreShareCard businessName={business.name} storePath={`/store/${business.slug}`} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -124,6 +254,38 @@ export default async function DashboardPage() {
                 <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
                   <span className="font-semibold">{product.name}</span>
                   <span className="rounded-full bg-gray-900 px-3 py-1 text-sm font-bold text-white">{product.aiConsultCount}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-xl font-black">Más clicks a WhatsApp</h2>
+          <div className="mt-4 space-y-3">
+            {topWhatsappProducts.length === 0 ? (
+              <p className="text-sm text-gray-500">Aún no hay clicks registrados.</p>
+            ) : (
+              topWhatsappProducts.map((product) => (
+                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
+                  <span className="font-semibold">{product.name}</span>
+                  <span className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-bold text-white">{product.whatsappClickCount}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-xl font-black">Productos más vistos</h2>
+          <div className="mt-4 space-y-3">
+            {topViewedProducts.length === 0 ? (
+              <p className="text-sm text-gray-500">Aún no hay vistas de fichas de producto.</p>
+            ) : (
+              topViewedProducts.map((product) => (
+                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
+                  <span className="font-semibold">{product.name}</span>
+                  <span className="rounded-full bg-blue-600 px-3 py-1 text-sm font-bold text-white">{product.productViewCount}</span>
                 </div>
               ))
             )}

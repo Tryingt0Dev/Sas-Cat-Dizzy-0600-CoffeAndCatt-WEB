@@ -49,7 +49,7 @@ export function StoreChat({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "ai",
-      content: "Hola. Soy el asistente de ventas. Preguntame por productos, stock o recomendaciones."
+      content: "¡Hola! Soy el asesor de la tienda. Cuéntame qué producto buscas y te ayudo a revisar opciones, precios y stock."
     }
   ]);
   const [input, setInput] = useState("");
@@ -77,7 +77,15 @@ export function StoreChat({
   const sendText = useCallback(
     async (text: string, productId?: string, productErrorMessage = "No pude responder ahora. Intenta nuevamente.") => {
       const customerText = text.trim();
-      if (!customerText || loading) return;
+      if (!customerText) {
+        setErrorMessage("Escribe tu mensaje para consultar a la IA.");
+        window.setTimeout(() => inputRef.current?.focus(), 50);
+        return;
+      }
+      if (loading) {
+        setErrorMessage("Estoy terminando la consulta anterior. Intenta nuevamente en un momento.");
+        return;
+      }
 
       setInput("");
       setErrorMessage(null);
@@ -130,6 +138,10 @@ export function StoreChat({
       setInput(detail.message);
       document.getElementById("store-ai-chat")?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.setTimeout(() => inputRef.current?.focus(), 250);
+      if (loading) {
+        setErrorMessage("Estoy terminando la consulta anterior. Intenta nuevamente en un momento.");
+        return;
+      }
       if (detail.autoSend) {
         sendText(detail.message, detail.productId, "No pude consultar este producto ahora. Intenta nuevamente.").catch(() => {
           setErrorMessage("No pude consultar este producto ahora. Intenta nuevamente.");
@@ -140,7 +152,7 @@ export function StoreChat({
 
     window.addEventListener("storechat:ask", handleAskAi);
     return () => window.removeEventListener("storechat:ask", handleAskAi);
-  }, [sendText]);
+  }, [loading, sendText]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,15 +165,9 @@ export function StoreChat({
   return (
     <div id="store-ai-chat" className="rounded-[var(--catalog-radius)] border border-black/10 bg-white p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-lg font-black">Vendedor IA</h3>
-        <p className="text-sm text-gray-500">Responde solo con datos de esta tienda.</p>
+        <h3 className="text-lg font-black">Asesor de tienda</h3>
+        <p className="text-sm text-gray-500">Pregunta por productos, precios y stock.</p>
       </div>
-      <input
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Tu WhatsApp opcional"
-        className="mb-3 w-full rounded-[var(--catalog-radius)] border border-black/10 px-4 py-2 text-sm"
-      />
       <div className="h-80 space-y-3 overflow-y-auto rounded-[var(--catalog-radius)] bg-gray-50 p-3" ref={messageListRef}>
         {messages.map((message, index) => (
           <div
@@ -178,24 +184,47 @@ export function StoreChat({
         ))}
         {loading && <div className="max-w-[85%] rounded-[var(--catalog-radius)] bg-white p-3 text-sm text-gray-500 shadow-sm">Consultando IA...</div>}
       </div>
-      <form onSubmit={handleSubmit} className="mt-3 flex gap-2" noValidate>
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ej: busco una opcion para mi negocio"
-          className="min-w-0 flex-1 rounded-[var(--catalog-radius)] border border-black/10 px-4 py-3 text-sm"
-          autoComplete="off"
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          className="rounded-[var(--catalog-radius)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ backgroundColor: accentColor, borderRadius: buttonRadius }}
-        >
-          {loading ? "Consultando..." : "Enviar"}
-        </button>
+      <form onSubmit={handleSubmit} className="mt-3 space-y-3" noValidate>
+        <label className="block">
+          <span className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-gray-400">Mensaje para la IA</span>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (errorMessage === "Escribe tu mensaje para consultar a la IA.") setErrorMessage(null);
+              }}
+              placeholder="Ej: ¿tienen stock de la polera rosada?"
+              className="min-w-0 flex-1 rounded-[var(--catalog-radius)] border border-black/10 px-4 py-3 text-sm"
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-[var(--catalog-radius)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              style={{ backgroundColor: accentColor, borderRadius: buttonRadius }}
+            >
+              {loading ? "Consultando..." : "Enviar"}
+            </button>
+          </div>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-gray-400">WhatsApp opcional</span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                inputRef.current?.focus();
+              }
+            }}
+            placeholder="Ej: +56 9 1234 5678"
+            className="w-full rounded-[var(--catalog-radius)] border border-black/10 px-4 py-2 text-sm"
+          />
+        </label>
       </form>
       {errorMessage && <p className="mt-3 text-sm font-semibold text-red-600">{errorMessage}</p>}
     </div>

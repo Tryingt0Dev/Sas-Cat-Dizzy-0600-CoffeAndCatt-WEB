@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentBusiness } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { Select } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusAlert } from "@/components/StatusAlert";
 import { formatCLP } from "@/lib/format";
 import { OrderStatus, QuoteStatus } from "@/lib/enums";
 import { createOrderFromQuoteAction } from "@/app/dashboard/quotes/actions";
@@ -28,13 +30,12 @@ export default async function OrdersPage({ searchParams }: { searchParams?: Prom
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Operación</p>
-        <h1 className="mt-2 text-4xl font-black">Pedidos</h1>
-        <p className="mt-2 text-gray-500">Confirma pedidos desde cotizaciones aceptadas y controla estados de preparación.</p>
-      </div>
-      {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader
+        eyebrow="Operación"
+        title="Pedidos"
+        description="Confirma pedidos desde cotizaciones aceptadas y controla estados de preparación."
+      />
+      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <Card>

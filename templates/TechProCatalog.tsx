@@ -1,5 +1,6 @@
 import { CatalogControls } from "@/components/catalog/CatalogControls";
 import { EmptyCatalogState } from "@/components/catalog/EmptyCatalogState";
+import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { StoreChat } from "@/components/StoreChat";
@@ -10,6 +11,7 @@ export function TechProCatalog({ business, categories, products, featuredProduct
 
   return (
     <main className="min-h-screen bg-[var(--catalog-bg)]" style={themeStyle}>
+      <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
       <section className="bg-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_460px] lg:items-center">
           <div>

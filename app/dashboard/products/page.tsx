@@ -4,7 +4,9 @@ import { Card } from "@/components/Card";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Input, Select, Textarea } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
 import { PendingSubmitButton } from "@/components/PendingSubmitButton";
+import { StatusAlert } from "@/components/StatusAlert";
 import { createProductAction, deleteProductAction, duplicateProductAction, updateProductAction } from "./actions";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
@@ -50,13 +52,17 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Inventario</p>
-        <h1 className="mt-2 text-4xl font-black">Productos</h1>
-        <p className="mt-2 text-gray-500">Crea, edita, duplica y controla stock con aislamiento por tienda.</p>
-      </div>
-      {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader
+        eyebrow="Inventario"
+        title="Productos"
+        description="Crea, edita, duplica y controla stock con datos separados por tienda."
+        actions={
+          <a href={`/store/${business.slug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            Ver catálogo
+          </a>
+        }
+      />
+      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Card>
@@ -93,6 +99,13 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
 
         <div className="space-y-4">
           <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-gray-900">{products.length} resultado{products.length === 1 ? "" : "s"}</p>
+                <p className="text-xs text-gray-500">Filtra rápido por categoría, estado o búsqueda.</p>
+              </div>
+              {(q || category || validStatus) && <a href="/dashboard/products" className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700">Limpiar</a>}
+            </div>
             <form className="grid gap-3 md:grid-cols-[1fr_180px_160px_auto]" action="/dashboard/products">
               <Input name="q" defaultValue={q} placeholder="Buscar por nombre, SKU o tags" />
               <Select name="category" defaultValue={category}>

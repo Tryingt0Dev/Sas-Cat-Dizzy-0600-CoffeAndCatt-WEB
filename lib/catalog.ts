@@ -21,6 +21,8 @@ export type CatalogProduct = {
   imageUrl: string | null;
   tags: string | null;
   featured: boolean;
+  productViewCount: number;
+  whatsappClickCount: number;
   createdAt: Date;
   category: CatalogCategory | null;
 };
@@ -109,8 +111,17 @@ export function getCatalogThemeStyle(business: CatalogBusiness): CatalogThemeSty
 
 export function buildWhatsappHref(business: CatalogBusiness, product?: CatalogProduct) {
   if (!business.whatsappNumber) return null;
-  const cleanNumber = business.whatsappNumber.replace(/[^\d]/g, "");
-  if (!cleanNumber) return null;
+  const digits = business.whatsappNumber.replace(/[^\d]/g, "");
+  const cleanNumber = digits.startsWith("00")
+    ? digits.slice(2)
+    : digits.startsWith("56")
+      ? digits
+      : digits.length === 10 && digits.startsWith("09")
+        ? `56${digits.slice(1)}`
+        : digits.length === 9 && digits.startsWith("9")
+          ? `56${digits}`
+          : digits;
+  if (cleanNumber.length < 8) return null;
   const message = product
     ? `Hola, quiero consultar por ${product.name} de ${business.name}.`
     : `Hola, quiero consultar por el catalogo de ${business.name}.`;

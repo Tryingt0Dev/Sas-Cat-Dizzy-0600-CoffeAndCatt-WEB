@@ -1,0 +1,20 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+flowchart TD
+    Usuario["Usuario tienda"] --> Landing["Landing /"]
+    Landing --> Registro["Registro /register"]
+    Registro --> CrearCuenta["Crear User + Business"]
+    CrearCuenta --> Dashboard["Dashboard privado /dashboard"]
+    Dashboard --> Productos["Productos"]
+    Dashboard --> Categorias["Categorias"]
+    Dashboard --> Branding["Settings: branding + IA"]
+    Dashboard --> CRM["CRM: Clientes y Conversaciones"]
+    Dashboard --> Cotizaciones["Cotizaciones"]
+    Dashboard --> Pedidos["Pedidos"]
+    Branding --> CatalogoPublico["Catalogo publico /store/[slug]"]
+    Productos --> CatalogoPublico
+    ClienteFinal["Cliente final"] --> CatalogoPublico
+    CatalogoPublico --> ChatIA["Chat IA"]
+    CatalogoPublico --> WhatsApp["WhatsApp"]
+    ChatIA --> Leads["Clientes y conversaciones"]
+    Cotizaciones --> Pedidos

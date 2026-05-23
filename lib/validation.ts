@@ -31,6 +31,15 @@ export const optionalImageUrl = z
   .transform((value) => value || null);
 export const colorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
+export function imageUrlBelongsToBusiness(url: string | null | undefined, businessId: string) {
+  if (!url) return true;
+  if (!url.startsWith("/uploads/")) return true;
+
+  const parts = url.split("/").filter(Boolean);
+  if (parts.length < 3 || parts[0] !== "uploads") return false;
+  return parts[1] === businessId && !parts.slice(2).some((part) => part === "." || part === "..");
+}
+
 export function intFromForm(value: FormDataEntryValue | null, fallback = 0) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -73,6 +82,8 @@ export const productFormSchema = z.object({
 
 export const settingsFormSchema = z.object({
   name: requiredString.max(120),
+  dashboardTitle: z.string().trim().max(120).optional().transform((value) => value || null),
+  dashboardSubtitle: z.string().trim().max(220).optional().transform((value) => value || null),
   description: optionalText,
   whatsappNumber: z.string().trim().max(40).optional().transform((value) => value || null),
   instagramUrl: optionalUrl,
@@ -102,9 +113,9 @@ export const aiRequestSchema = z
     message: z.string().trim().max(1200).optional(),
     customerPhone: z.string().trim().max(40).optional(),
     phone: z.string().trim().max(40).optional(),
-    conversationId: z.string().trim().optional(),
+    conversationId: z.string().trim().max(120).optional(),
     visitorId: z.string().trim().max(120).optional(),
-    productId: z.string().trim().optional()
+    productId: z.string().trim().max(120).optional()
   })
   .transform((value, ctx) => {
     const businessSlug = value.businessSlug || value.slug || "";

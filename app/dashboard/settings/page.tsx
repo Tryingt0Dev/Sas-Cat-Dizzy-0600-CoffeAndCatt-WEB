@@ -1,16 +1,25 @@
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { getCurrentBusinessContext } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Input, Textarea } from "@/components/Input";
+import { PageHeader } from "@/components/PageHeader";
 import { PendingSubmitButton } from "@/components/PendingSubmitButton";
+import { StatusAlert } from "@/components/StatusAlert";
 import { catalogTemplateOptions, getCatalogThemeStyle } from "@/lib/catalog";
+import { allowedTemplatesForPlan, effectivePlanLimits, planDisplayName } from "@/services/plan-guard";
 import { updateSettingsAction } from "./actions";
 
 export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
-  const settings = await prisma.aiSettings.findUnique({ where: { businessId: business.id } });
+  const { user, business } = await getCurrentBusinessContext();
+  const [settings, businessWithPlan] = await Promise.all([
+    prisma.aiSettings.findUnique({ where: { businessId: business.id } }),
+    prisma.business.findUnique({ where: { id: business.id }, include: { plan: true } })
+  ]);
+  const effectivePlan = effectivePlanLimits(businessWithPlan?.plan, user);
+  const allowedTemplates = allowedTemplatesForPlan(effectivePlan);
+  const currentPlanName = planDisplayName(businessWithPlan?.plan, user);
   const themeStyle = getCatalogThemeStyle({
     id: business.id,
     name: business.name,
@@ -32,16 +41,24 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-gray-400">Configuración</p>
-        <h1 className="mt-2 text-4xl font-black">Tienda, diseño e IA</h1>
-        <p className="mt-2 text-gray-500">Define la identidad visual pública y el comportamiento del vendedor IA.</p>
-      </div>
-      {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
-      {resolvedSearchParams?.error && <div className="mb-4 rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700">{resolvedSearchParams.error}</div>}
+      <PageHeader
+        eyebrow="Configuración"
+        title="Tienda, panel, diseño e IA"
+        description="Define cómo se ve tu catálogo público y cómo se organiza el panel interno para trabajar más rápido."
+      />
+      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
 
       <form action={updateSettingsAction} className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
+          <Card>
+            <h2 className="text-xl font-black">Nombre del panel interno</h2>
+            <p className="mt-1 text-sm text-gray-500">Esto no cambia el nombre público de la tienda; solo mejora la experiencia de tu equipo dentro del dashboard.</p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <Input name="dashboardTitle" defaultValue={business.dashboardTitle ?? ""} placeholder={`Panel de ${business.name}`} maxLength={120} />
+              <Input name="dashboardSubtitle" defaultValue={business.dashboardSubtitle ?? ""} placeholder="Ej: Ventas, inventario y clientes en un solo lugar" maxLength={220} />
+            </div>
+          </Card>
+
           <Card>
             <h2 className="text-xl font-black">Datos públicos</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -55,14 +72,35 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           </Card>
 
           <Card>
-            <h2 className="text-xl font-black">Diseño del catálogo</h2>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Diseño del catálogo</h2>
+                <p className="mt-1 text-sm text-gray-500">Plan activo: <span className="font-black text-gray-900">{currentPlanName}</span></p>
+              </div>
+              {effectivePlan.advancedBranding && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Branding avanzado</span>}
+            </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {catalogTemplateOptions.map((template) => (
-                <label key={template.value} className="cursor-pointer rounded-2xl border border-gray-200 p-4 hover:border-gray-400">
+                <label
+                  key={template.value}
+                  className={allowedTemplates.includes(template.value)
+                    ? "cursor-pointer rounded-2xl border border-gray-200 p-4 hover:border-gray-400"
+                    : "rounded-2xl border border-gray-100 bg-gray-50 p-4 opacity-60"}
+                >
                   <div className="flex items-start gap-3">
-                    <input name="catalogTemplate" type="radio" value={template.value} defaultChecked={business.catalogTemplate === template.value} className="mt-1" />
+                    <input
+                      name="catalogTemplate"
+                      type="radio"
+                      value={template.value}
+                      defaultChecked={business.catalogTemplate === template.value}
+                      disabled={!allowedTemplates.includes(template.value)}
+                      className="mt-1"
+                    />
                     <div>
-                      <p className="font-black">{template.label}</p>
+                      <p className="font-black">
+                        {template.label}
+                        {!allowedTemplates.includes(template.value) && <span className="ml-2 text-xs text-gray-400">Plan superior</span>}
+                      </p>
                       <p className="mt-1 text-sm text-gray-500">{template.description}</p>
                       <div className="mt-3 grid grid-cols-3 gap-2">
                         <span className="h-10 rounded-lg bg-gray-900" />

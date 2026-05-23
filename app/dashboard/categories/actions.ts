@@ -13,10 +13,11 @@ export async function createCategoryAction(formData: FormData) {
   if (!parsedName.success) redirect("/dashboard/categories?error=Nombre obligatorio");
   const name = parsedName.data;
 
-  let slug = slugify(name);
+  const baseSlug = slugify(name) || "categoria";
+  let slug = baseSlug;
   let counter = 2;
   while (await prisma.category.findUnique({ where: { businessId_slug: { businessId: business.id, slug } } })) {
-    slug = `${slugify(name)}-${counter++}`;
+    slug = `${baseSlug}-${counter++}`;
   }
 
   await prisma.category.create({ data: { businessId: business.id, name, slug } });

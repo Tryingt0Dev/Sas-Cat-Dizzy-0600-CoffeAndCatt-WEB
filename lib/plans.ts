@@ -65,3 +65,12 @@ export async function getFreePlan() {
     create: planDefinitions.FREE
   });
 }
+
+export async function getPlanByType(type: PlanType) {
+  const definition = planDefinitions[type];
+  return prisma.plan.upsert({
+    where: { type },
+    update: definition,
+    create: definition
+  });
+}

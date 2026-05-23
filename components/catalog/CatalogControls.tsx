@@ -12,17 +12,23 @@ export function CatalogControls({
   const hasFilters = Boolean(searchState.q || searchState.category || (searchState.sort && searchState.sort !== "featured"));
 
   return (
-    <form className={compact ? "grid gap-3 md:grid-cols-[1fr_180px_180px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-black/10 bg-white/90 p-3 shadow-sm md:grid-cols-[1fr_200px_200px_auto_auto]"} action="">
+    <form
+      className={compact ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-black/10 bg-white/90 p-3 shadow-sm md:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]"}
+      action=""
+      method="get"
+    >
       <input
         name="q"
         defaultValue={searchState.q}
         placeholder="Buscar productos"
-        className="min-h-11 rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        aria-label="Buscar productos"
+        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
       />
       <select
         name="category"
         defaultValue={searchState.category}
-        className="min-h-11 rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        aria-label="Categoria"
+        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
       >
         <option value="">Todas las categorias</option>
         {categories.map((category) => (
@@ -34,7 +40,8 @@ export function CatalogControls({
       <select
         name="sort"
         defaultValue={searchState.sort}
-        className="min-h-11 rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        aria-label="Ordenar"
+        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
       >
         <option value="featured">Destacados</option>
         <option value="price_asc">Menor precio</option>

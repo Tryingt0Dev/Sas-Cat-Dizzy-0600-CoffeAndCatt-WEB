@@ -1,0 +1,21 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Owner as Usuario tienda
+    participant Quotes as /dashboard/quotes
+    participant Action as createOrderFromQuoteAction
+    participant DB as Prisma transaction
+
+    Owner->>Quotes: Marca cotizacion como ACCEPTED
+    Owner->>Quotes: Click Crear pedido
+    Quotes->>Action: quoteId
+    Action->>DB: Busca Quote por id + businessId
+    DB-->>Action: Quote con items y order
+    Action->>Action: Verifica que este ACCEPTED y sin pedido previo
+    loop Por cada item con producto
+        Action->>DB: Busca Product por id + businessId
+        Action->>Action: Valida stock suficiente
+        Action->>DB: Decrementa stock
+    end
+    Action->>DB: Crea Order + OrderItems
+    Action-->>Quotes: Redirect /dashboard/orders

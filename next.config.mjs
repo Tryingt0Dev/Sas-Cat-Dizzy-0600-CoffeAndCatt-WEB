@@ -1,24 +1,35 @@
 /** @type {import('next').NextConfig} */
 const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   ? process.env.NEXT_ALLOWED_DEV_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-  : [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://26.223.102.248:3000',
-      '26.223.102.248'
-    ];
+  : [];
+const serverActionAllowedOrigins = process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS
+  ? process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : undefined;
 
 const nextConfig = {
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://26.223.102.248:3000'
-      ]
-    }
-  },
-  allowedDevOrigins
+  ...(serverActionAllowedOrigins
+    ? {
+        experimental: {
+          serverActions: {
+            allowedOrigins: serverActionAllowedOrigins
+          }
+        }
+      }
+    : {}),
+  allowedDevOrigins,
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
+        ]
+      }
+    ];
+  }
 };
 
 export default nextConfig;

@@ -131,7 +131,7 @@ export function ImageDropzone({
         />
       </div>
       <input
-        type="url"
+        type="text"
         value={url}
         onChange={(event) => {
           const nextUrl = event.target.value;

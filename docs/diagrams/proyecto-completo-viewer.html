@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CATG OmniVentas SaaS - Diagrama Completo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: #111827;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 12px 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button,
+      a {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #111827;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 8px 12px;
+        text-decoration: none;
+      }
+
+      button:hover,
+      a:hover {
+        background: #f1f5f9;
+      }
+
+      main {
+        height: calc(100vh - 59px);
+        overflow: auto;
+        padding: 24px;
+        cursor: grab;
+        user-select: none;
+      }
+
+      main.dragging {
+        cursor: grabbing;
+      }
+
+      .canvas {
+        min-height: 100%;
+        min-width: max-content;
+        transform-origin: top left;
+      }
+
+      img {
+        display: block;
+        max-width: none;
+        width: 3600px;
+        height: auto;
+        background: #ffffff;
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+        -webkit-user-drag: none;
+        user-select: none;
+      }
+
+      .hint {
+        margin: 0;
+        color: #475569;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>CATG OmniVentas SaaS - Diagrama completo</h1>
+        <p class="hint">Manten click y arrastra para moverte. Usa los botones de zoom para leer cada modulo.</p>
+      </div>
+      <div class="controls">
+        <button type="button" data-zoom="out">Alejar</button>
+        <button type="button" data-zoom="reset">100%</button>
+        <button type="button" data-zoom="in">Acercar</button>
+        <a href="./proyecto-completo.svg" target="_blank" rel="noreferrer">Abrir SVG</a>
+      </div>
+    </header>
+    <main>
+      <div class="canvas" id="canvas">
+        <img src="./proyecto-completo.svg" alt="Diagrama completo del proyecto CATG OmniVentas SaaS" draggable="false" />
+      </div>
+    </main>
+    <script>
+      const canvas = document.getElementById("canvas");
+      const viewport = document.querySelector("main");
+      let scale = 1;
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let scrollStartLeft = 0;
+      let scrollStartTop = 0;
+
+      function applyZoom() {
+        canvas.style.transform = `scale(${scale})`;
+      }
+
+      document.querySelectorAll("[data-zoom]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const action = button.getAttribute("data-zoom");
+          if (action === "in") scale = Math.min(scale + 0.25, 4);
+          if (action === "out") scale = Math.max(scale - 0.25, 0.5);
+          if (action === "reset") scale = 1;
+          applyZoom();
+        });
+      });
+
+      viewport.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        isDragging = true;
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        scrollStartLeft = viewport.scrollLeft;
+        scrollStartTop = viewport.scrollTop;
+        viewport.classList.add("dragging");
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener("pointermove", (event) => {
+        if (!isDragging) return;
+        event.preventDefault();
+        const deltaX = event.clientX - dragStartX;
+        const deltaY = event.clientY - dragStartY;
+        viewport.scrollLeft = scrollStartLeft - deltaX;
+        viewport.scrollTop = scrollStartTop - deltaY;
+      });
+
+      function stopDragging(event) {
+        if (!isDragging) return;
+        isDragging = false;
+        viewport.classList.remove("dragging");
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener("pointerup", stopDragging);
+      viewport.addEventListener("pointercancel", stopDragging);
+    </script>
+  </body>
+</html>
