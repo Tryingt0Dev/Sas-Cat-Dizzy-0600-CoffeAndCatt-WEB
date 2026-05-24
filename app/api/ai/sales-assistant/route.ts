@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { deepseek, hasDeepSeekKey } from "@/lib/ai";
 import { ConversationStatus, CustomerStatus, ProductStatus } from "@/lib/enums";
 import { aiRequestSchema, aiResponseSchema, type AiResponsePayload } from "@/lib/validation";
-import { assertRateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
+import { assertRateLimit, getClientIp, rateLimitKey, RateLimitError } from "@/lib/rate-limit";
+import { requestHasAllowedOrigin } from "@/lib/request-security";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 import { effectivePlanLimits } from "@/services/plan-guard";
 import { analyzeProductQuery, type ProductSearchAnalysis, type RelevantProduct } from "@/services/product-search";
@@ -30,8 +31,33 @@ function formatStockForCustomer(stock: number) {
 }
 
 function productLine(product: RelevantProduct) {
+  const sku = product.sku ? ` SKU ${product.sku}.` : " SKU N/D.";
   const description = product.description ? ` ${product.description.slice(0, 120)}` : "";
-  return `${product.name} a ${formatCLP(product.finalPrice)}; ${formatStockForCustomer(product.stock)}.${description}`;
+  const compareAtPrice =
+    product.compareAtPrice && product.compareAtPrice > product.finalPrice ? ` Antes ${formatCLP(product.compareAtPrice)}.` : "";
+  const discount = product.discountPercent > 0 ? ` Descuento ${product.discountPercent}%.` : "";
+  return `${product.name}.${sku} Precio ${formatCLP(product.finalPrice)}.${compareAtPrice}${discount} ${formatStockForCustomer(product.stock)}.${description}`;
+}
+
+function focusedProductReply(product: RelevantProduct, customerPhone?: string | null) {
+  const availability =
+    product.stock > 0
+      ? `Sí, ${product.name} aparece disponible con ${product.stock} unidad${product.stock === 1 ? "" : "es"}.`
+      : `${product.name} aparece sin stock por ahora.`;
+  const sku = product.sku || "N/D";
+  const compareAtPrice =
+    product.compareAtPrice && product.compareAtPrice > product.finalPrice ? ` Antes estaba a ${formatCLP(product.compareAtPrice)}.` : "";
+  const discount = product.discountPercent > 0 ? ` Tiene ${product.discountPercent}% de descuento aplicado.` : "";
+  const description = product.description ? ` Detalle: ${product.description.slice(0, 220)}` : " No tengo una descripción adicional cargada para este producto.";
+  const recommendation =
+    product.stock > 0
+      ? " Mi recomendación es reservarlo o confirmar por WhatsApp si necesitas instalación, despacho o una característica específica."
+      : " Puedo ayudarte a revisar alternativas similares disponibles en el catálogo.";
+  const whatsapp = customerPhone
+    ? ` Con el WhatsApp ${customerPhone} puedo dejar esta consulta lista para seguimiento.`
+    : " Si quieres, también puedo ayudarte a preparar el mensaje para WhatsApp.";
+
+  return `${availability} SKU ${sku}. Precio actual ${formatCLP(product.finalPrice)}.${compareAtPrice}${discount}${description}${recommendation}${whatsapp}`;
 }
 
 function joinList(items: string[]) {
@@ -139,8 +165,10 @@ function buildCustomerNotes(existingNotes: string | null, intent: string) {
 function toRelevantProduct(product: {
   id: string;
   name: string;
+  sku: string | null;
   description: string | null;
   price: number;
+  compareAtPrice: number | null;
   discountPercent: number;
   stock: number;
   tags: string | null;
@@ -149,8 +177,10 @@ function toRelevantProduct(product: {
   return {
     id: product.id,
     name: product.name,
+    sku: product.sku,
     description: product.description,
     price: product.price,
+    compareAtPrice: product.compareAtPrice,
     discountPercent: product.discountPercent,
     finalPrice: getFinalPrice(product.price, product.discountPercent),
     stock: product.stock,
@@ -161,6 +191,11 @@ function toRelevantProduct(product: {
 
 export async function POST(req: Request) {
   try {
+    // SECURITY: Verify origin for mutating AI endpoint
+    if (!requestHasAllowedOrigin(req)) {
+      return NextResponse.json({ ok: false, error: "Origen no permitido" }, { status: 403 });
+    }
+
     const body = await req.json();
     const parsedRequest = aiRequestSchema.safeParse(body);
 
@@ -168,24 +203,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Solicitud invalida" }, { status: 400 });
     }
 
-    const { businessSlug, customerMessage, customerPhone, conversationId, visitorId, productId } = parsedRequest.data;
-    const ip = await getClientIp();
-    try {
-      assertRateLimit(`ai:${businessSlug}:${ip}`, 30, 10 * 60 * 1000);
-    } catch (error) {
-      if (error instanceof RateLimitError) {
-        return NextResponse.json({ ok: false, error: error.message, retryAfterSeconds: error.retryAfterSeconds }, { status: 429 });
-      }
-      throw error;
-    }
-
+    const { businessSlug, customerMessage, customerPhone, conversationId, visitorId, productId, productContext } = parsedRequest.data;
     const business = await prisma.business.findFirst({
-      where: { slug: businessSlug, isActive: true },
+      where: { publicSlug: businessSlug, isActive: true },
       include: { aiSettings: true, plan: true, owner: true }
     });
 
     if (!business) {
       return NextResponse.json({ ok: false, error: "Tienda no encontrada" }, { status: 404 });
+    }
+
+    const ip = await getClientIp(req);
+    try {
+      await assertRateLimit(rateLimitKey({ endpoint: "ai:sales-assistant", businessId: business.id, ip }), 30, 10 * 60 * 1000);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        return NextResponse.json({ ok: false, error: error.message, retryAfterSeconds: error.retryAfterSeconds }, { status: 429 });
+      }
+      throw error;
     }
 
     const settings = business.aiSettings;
@@ -280,11 +315,11 @@ export async function POST(req: Request) {
     }
 
     if (customer && !conversation.customerId) {
-      conversation = await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: { customerId: customer.id },
-        select: { id: true, businessId: true, customerId: true, status: true }
+      await prisma.conversation.updateMany({
+        where: { id: conversation.id, businessId: business.id },
+        data: { customerId: customer.id }
       });
+      conversation = { ...conversation, customerId: customer.id };
     }
 
     await prisma.message.create({
@@ -292,12 +327,26 @@ export async function POST(req: Request) {
         conversationId: conversation.id,
         senderType: "CUSTOMER",
         content: customerMessage,
-        metadata: JSON.stringify({ customerPhone: customerPhone || null, visitorId: visitorId || null, productId: productId || null })
+        metadata: JSON.stringify({
+          customerPhone: customerPhone || null,
+          visitorId: visitorId || null,
+          productId: productId || null,
+          productContext: productContext
+            ? {
+                id: productContext.id,
+                name: productContext.name,
+                sku: productContext.sku,
+                price: productContext.price,
+                finalPrice: productContext.finalPrice,
+                stock: productContext.stock
+              }
+            : null
+        })
       }
     });
 
     const recentMessages = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
+      where: { conversationId: conversation.id, conversation: { businessId: business.id } },
       orderBy: { createdAt: "desc" },
       take: 10
     });
@@ -306,15 +355,17 @@ export async function POST(req: Request) {
     const catalogContext = relevantProducts
       .map(
         (p, index) =>
-          `${index + 1}. ID: ${p.id} | ${p.name} | Categoria: ${p.category ?? "Sin categoria"} | Precio final: ${formatCLP(p.finalPrice)} | Descuento: ${p.discountPercent}% | Stock: ${p.stock} | Descripcion: ${p.description ?? "Sin descripcion"} | Tags: ${p.tags ?? ""}`
+          `${index + 1}. ID: ${p.id} | ${p.name} | SKU: ${p.sku ?? "N/D"} | Categoria: ${p.category ?? "Sin categoria"} | Precio lista: ${formatCLP(p.price)} | Precio final: ${formatCLP(p.finalPrice)} | Precio anterior: ${p.compareAtPrice ? formatCLP(p.compareAtPrice) : "N/D"} | Descuento: ${p.discountPercent}% | Stock: ${p.stock} | Descripcion: ${p.description ?? "Sin descripcion"} | Tags: ${p.tags ?? ""}`
       )
       .join("\n");
 
     let aiResult: AiResponsePayload = {
-      reply: demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis),
-      intent: "unknown",
-      lead_score: 0,
-      customer_status: CustomerStatus.NEW,
+      reply: focusedProduct
+        ? focusedProductReply(focusedProduct, customerPhone)
+        : demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis),
+      intent: focusedProduct ? "product_interest" : "unknown",
+      lead_score: focusedProduct ? 60 : 0,
+      customer_status: focusedProduct ? CustomerStatus.INTERESTED : CustomerStatus.NEW,
       recommended_product_ids: focusedProduct ? [focusedProduct.id] : [],
       next_action: settings?.humanHandoffEnabled === false ? "ask_more" : "human_handoff"
     };
@@ -389,11 +440,15 @@ ${formatAvailabilityContext(searchAnalysis)}
         if (parsedAi.success) {
           aiResult = parsedAi.data;
         } else {
-          aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+          aiResult.reply = focusedProduct
+            ? focusedProductReply(focusedProduct, customerPhone)
+            : demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
           aiResult.intent = focusedProduct ? "product_interest" : "general_question";
         }
       } catch {
-        aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+        aiResult.reply = focusedProduct
+          ? focusedProductReply(focusedProduct, customerPhone)
+          : demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
         aiResult.intent = focusedProduct ? "product_interest" : "general_question";
         aiResult.lead_score = focusedProduct ? 60 : 35;
         aiResult.customer_status = focusedProduct ? CustomerStatus.INTERESTED : CustomerStatus.NEW;
@@ -415,13 +470,15 @@ ${formatAvailabilityContext(searchAnalysis)}
       aiResult.next_action = settings?.humanHandoffEnabled === false ? "ask_more" : "human_handoff";
     }
     if (mentionsInternalDetails(aiResult.reply)) {
-      aiResult.reply = demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
+      aiResult.reply = focusedProduct
+        ? focusedProductReply(focusedProduct, customerPhone)
+        : demoReply(relevantProducts, settings?.fallbackMessage ?? "No tengo esa informacion exacta.", searchAnalysis);
       aiResult.intent = focusedProduct ? "product_interest" : "general_question";
     }
 
     if (customer) {
-      await prisma.customer.update({
-        where: { id: customer.id },
+      await prisma.customer.updateMany({
+        where: { id: customer.id, businessId: business.id },
         data: {
           status: aiResult.customer_status,
           leadScore: aiResult.lead_score,
@@ -445,8 +502,8 @@ ${formatAvailabilityContext(searchAnalysis)}
       }
     });
 
-    await prisma.conversation.update({
-      where: { id: conversation.id },
+    await prisma.conversation.updateMany({
+      where: { id: conversation.id, businessId: business.id },
       data: {
         status: aiResult.next_action === "human_handoff" ? ConversationStatus.WAITING_HUMAN : ConversationStatus.OPEN,
         lastMessageAt: new Date()
@@ -468,6 +525,7 @@ ${formatAvailabilityContext(searchAnalysis)}
 
     return NextResponse.json({
       ok: true,
+      answer: aiResult.reply,
       reply: aiResult.reply,
       conversationId: conversation.id,
       intent: aiResult.intent,

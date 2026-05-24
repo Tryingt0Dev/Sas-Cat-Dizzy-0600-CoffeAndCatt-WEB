@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Prisma } from "@prisma/client";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { CatalogTemplate, ProductStatus } from "@/lib/enums";
 import { getCatalogThemeStyle, type CatalogBusiness, type CatalogSearchState } from "@/lib/catalog";
@@ -25,7 +25,7 @@ function getOrderBy(sort: string): Prisma.ProductOrderByWithRelationInput[] {
 export async function generateMetadata({ params }: StorePageProps): Promise<Metadata> {
   const { slug } = await params;
   const business = await prisma.business.findFirst({
-    where: { slug, isActive: true },
+    where: { publicSlug: slug, isActive: true },
     select: {
       name: true,
       description: true,
@@ -80,7 +80,7 @@ export default async function StorePage({ params, searchParams }: StorePageProps
   };
 
   const business = await prisma.business.findFirst({
-    where: { slug: resolvedParams.slug, isActive: true },
+    where: { publicSlug: resolvedParams.slug, isActive: true },
     include: {
       categories: { orderBy: { name: "asc" } },
       products: {
@@ -91,12 +91,20 @@ export default async function StorePage({ params, searchParams }: StorePageProps
     }
   });
 
-  if (!business) notFound();
+  if (!business) {
+    const slugHistory = await prisma.businessSlugHistory.findUnique({
+      where: { slug: resolvedParams.slug },
+      include: { business: { select: { publicSlug: true, isActive: true } } }
+    });
+    if (slugHistory?.business.isActive) permanentRedirect(`/store/${slugHistory.business.publicSlug}`);
+    notFound();
+  }
 
   const catalogBusiness: CatalogBusiness = {
     id: business.id,
     name: business.name,
     slug: business.slug,
+    publicSlug: business.publicSlug,
     description: business.description,
     logoUrl: business.logoUrl,
     bannerUrl: business.bannerUrl,

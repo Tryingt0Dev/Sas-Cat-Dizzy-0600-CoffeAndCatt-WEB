@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { Input, Select } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
@@ -15,7 +15,7 @@ type CustomerSearchParams = {
 
 export default async function CustomersPage({ searchParams }: { searchParams?: Promise<CustomerSearchParams | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_customers" });
   const q = String(resolvedSearchParams?.q ?? "").trim();
   const status = String(resolvedSearchParams?.status ?? "").trim();
   const validStatus = enumValues(CustomerStatus).includes(status as CustomerStatusValue) ? status : undefined;

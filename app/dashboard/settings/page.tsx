@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { getCurrentBusinessContext } from "@/lib/auth";
 import { Card } from "@/components/Card";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Input, Textarea } from "@/components/Input";
@@ -8,11 +7,12 @@ import { PendingSubmitButton } from "@/components/PendingSubmitButton";
 import { StatusAlert } from "@/components/StatusAlert";
 import { catalogTemplateOptions, getCatalogThemeStyle } from "@/lib/catalog";
 import { allowedTemplatesForPlan, effectivePlanLimits, planDisplayName } from "@/services/plan-guard";
+import { requireStoreAccess } from "@/services/authorization";
 import { updateSettingsAction } from "./actions";
 
 export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const { user, business } = await getCurrentBusinessContext();
+  const { user, business } = await requireStoreAccess({ permission: "manage_settings" });
   const [settings, businessWithPlan] = await Promise.all([
     prisma.aiSettings.findUnique({ where: { businessId: business.id } }),
     prisma.business.findUnique({ where: { id: business.id }, include: { plan: true } })
@@ -24,6 +24,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     id: business.id,
     name: business.name,
     slug: business.slug,
+    publicSlug: business.publicSlug,
     description: business.description,
     logoUrl: business.logoUrl,
     bannerUrl: business.bannerUrl,
@@ -63,10 +64,14 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
             <h2 className="text-xl font-black">Datos públicos</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Input name="name" defaultValue={business.name} placeholder="Nombre tienda" required />
+              <Input name="publicSlug" defaultValue={business.publicSlug} placeholder="URL publica: mi-tienda" required />
               <Input name="businessType" defaultValue={business.businessType ?? ""} placeholder="Tipo de negocio" />
               <Input name="whatsappNumber" defaultValue={business.whatsappNumber ?? ""} placeholder="WhatsApp" />
               <Input name="instagramUrl" defaultValue={business.instagramUrl ?? ""} placeholder="Instagram URL" />
             </div>
+            <p className="mt-3 rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-600">
+              URL pública: <span className="text-gray-950">/store/{business.publicSlug}</span>
+            </p>
             <Textarea name="description" defaultValue={business.description ?? ""} placeholder="Descripción pública" rows={3} className="mt-4" />
             <Input name="address" defaultValue={business.address ?? ""} placeholder="Dirección o zona" className="mt-4" />
           </Card>

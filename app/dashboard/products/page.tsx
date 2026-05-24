@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ImageDropzone } from "@/components/ImageDropzone";
@@ -21,7 +21,7 @@ type ProductSearchParams = {
 
 export default async function ProductsPage({ searchParams }: { searchParams?: Promise<ProductSearchParams | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
   const q = String(resolvedSearchParams?.q ?? "").trim();
   const category = String(resolvedSearchParams?.category ?? "").trim();
   const status = String(resolvedSearchParams?.status ?? "").trim();
@@ -57,7 +57,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
         title="Productos"
         description="Crea, edita, duplica y controla stock con datos separados por tienda."
         actions={
-          <a href={`/store/${business.slug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+          <a href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
             Ver catálogo
           </a>
         }

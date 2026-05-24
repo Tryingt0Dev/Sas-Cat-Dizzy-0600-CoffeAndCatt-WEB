@@ -14,7 +14,7 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
       <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
       <section className="relative overflow-hidden bg-[var(--catalog-primary)] text-white">
         <SafeImage src={heroImage} fallback={defaultProductImage} alt={business.name} className="absolute inset-0 h-full w-full object-cover opacity-30" />
-        <div className="relative mx-auto grid max-w-7xl gap-8 px-6 py-14 lg:grid-cols-[1fr_380px] lg:items-end">
+        <div className="relative mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-14 lg:grid-cols-[1fr_380px] lg:items-end">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.25em] text-white/75">Catalogo oficial</p>
             <h1 className="mt-3 max-w-4xl text-5xl font-black leading-tight md:text-6xl">{business.name}</h1>
@@ -31,7 +31,7 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_390px]">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_390px]">
         <div className="space-y-10">
           {featuredProducts.length > 0 && (
             <div>
@@ -66,7 +66,7 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
           </div>
         </div>
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <StoreChat businessSlug={business.slug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
+          <StoreChat businessSlug={business.publicSlug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
         </aside>
       </section>
     </main>

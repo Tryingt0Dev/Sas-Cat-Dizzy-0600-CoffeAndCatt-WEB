@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { Input, Select, Textarea } from "@/components/Input";
 import { formatCLP } from "@/lib/format";
@@ -17,7 +17,7 @@ export default async function CustomerDetailPage({
 }) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_customers" });
   const customer = await prisma.customer.findFirst({
     where: { id, businessId: business.id },
     include: {

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { hasPlatformAccess } from "@/lib/auth";
+import { hasFullPlanAccess } from "@/lib/auth";
 import { CatalogTemplate } from "@/lib/enums";
 import { planDefinitions } from "@/lib/plans";
 
@@ -8,10 +8,13 @@ type PlanLimits = {
   name?: string;
   maxTemplates: number;
   maxProducts?: number;
+  maxCategories?: number;
   maxAiConversationsMonthly?: number;
   maxUsers?: number;
+  maxStores?: number;
   advancedBranding: boolean;
   quotesAndOrders: boolean;
+  customDomain?: boolean;
 };
 
 type PlanIdentity = {
@@ -51,11 +54,14 @@ export const platformFullAccessPlan: PlanLimits = {
   type: "PLATFORM_FULL_ACCESS",
   name: "Acceso total",
   maxProducts: 999999,
+  maxCategories: 999999,
   maxAiConversationsMonthly: 999999,
   maxUsers: 999999,
+  maxStores: 999999,
   maxTemplates: TEMPLATE_ACCESS_ORDER.length,
   advancedBranding: true,
-  quotesAndOrders: true
+  quotesAndOrders: true,
+  customDomain: true
 };
 
 export class PlanAccessError extends Error {
@@ -69,7 +75,7 @@ function fallbackPlan(): PlanLimits {
 }
 
 export function effectivePlanLimits(plan: PlanLimits | null | undefined, user?: PlanIdentity | null) {
-  if (hasPlatformAccess(user)) return platformFullAccessPlan;
+  if (hasFullPlanAccess(user)) return platformFullAccessPlan;
   return plan ?? fallbackPlan();
 }
 

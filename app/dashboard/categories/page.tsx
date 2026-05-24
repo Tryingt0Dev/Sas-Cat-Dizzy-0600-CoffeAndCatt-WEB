@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
@@ -8,7 +8,7 @@ import { createCategoryAction, deleteCategoryAction } from "./actions";
 
 export default async function CategoriesPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_categories" });
   const categories = await prisma.category.findMany({
     where: { businessId: business.id },
     include: { _count: { select: { products: true } } },

@@ -14,7 +14,7 @@ export function FastSalesCatalog({ business, categories, products, featuredProdu
     <main className="min-h-screen" style={themeStyle}>
       <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
       <section className="border-b border-black/10 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_340px] lg:items-center">
+        <div className="mx-auto grid grid-cols-1 max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1fr_340px] lg:items-center">
           <div className="grid gap-6 md:grid-cols-[180px_1fr] md:items-center">
             <SafeImage src={heroImage} fallback={defaultProductImage} alt={business.name} className="aspect-square w-full rounded-[var(--catalog-radius)] object-cover" />
             <div>
@@ -37,7 +37,7 @@ export function FastSalesCatalog({ business, categories, products, featuredProdu
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[1fr_390px]">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[1fr_390px]">
         <div>
           {featuredProducts.length > 0 && (
             <div className="mb-8 rounded-[var(--catalog-radius)] border border-[var(--catalog-accent)]/30 bg-white p-5">
@@ -60,7 +60,7 @@ export function FastSalesCatalog({ business, categories, products, featuredProdu
           )}
         </div>
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <StoreChat businessSlug={business.slug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
+          <StoreChat businessSlug={business.publicSlug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
         </aside>
       </section>
     </main>

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { CatalogTemplate, PlanType, UserRole, type UserRole as UserRoleValue } from "../lib/enums";
+import { CatalogTemplate, PlanType, StoreRole, UserRole, type UserRole as UserRoleValue } from "../lib/enums";
 
 const prisma = new PrismaClient();
 
@@ -9,41 +9,53 @@ const seedPlanDefinitions = {
     type: PlanType.FREE,
     name: "Free",
     maxProducts: 25,
+    maxCategories: 5,
     maxAiConversationsMonthly: 100,
     maxUsers: 1,
+    maxStores: 1,
     maxTemplates: 1,
     advancedBranding: false,
-    quotesAndOrders: false
+    quotesAndOrders: false,
+    customDomain: false
   },
   STARTER: {
     type: PlanType.STARTER,
     name: "Starter",
     maxProducts: 150,
+    maxCategories: 20,
     maxAiConversationsMonthly: 1000,
     maxUsers: 2,
+    maxStores: 1,
     maxTemplates: 2,
     advancedBranding: true,
-    quotesAndOrders: true
+    quotesAndOrders: true,
+    customDomain: false
   },
   PRO: {
     type: PlanType.PRO,
     name: "Pro",
     maxProducts: 1000,
+    maxCategories: 80,
     maxAiConversationsMonthly: 5000,
     maxUsers: 5,
+    maxStores: 3,
     maxTemplates: 4,
     advancedBranding: true,
-    quotesAndOrders: true
+    quotesAndOrders: true,
+    customDomain: false
   },
   BUSINESS: {
     type: PlanType.BUSINESS,
     name: "Business",
     maxProducts: 5000,
+    maxCategories: 300,
     maxAiConversationsMonthly: 25000,
     maxUsers: 20,
+    maxStores: 10,
     maxTemplates: 4,
     advancedBranding: true,
-    quotesAndOrders: true
+    quotesAndOrders: true,
+    customDomain: true
   }
 } as const;
 
@@ -79,6 +91,7 @@ async function main() {
     update: {
       planId: proPlan.id,
       planType: PlanType.PRO,
+      publicSlug: "storelamon",
       catalogTemplate: CatalogTemplate.BOUTIQUE_PREMIUM,
       primaryColor: "#111827",
       secondaryColor: "#FDF2F8",
@@ -93,6 +106,7 @@ async function main() {
       planType: PlanType.PRO,
       name: "STORELAMON",
       slug: "storelamon",
+      publicSlug: "storelamon",
       description: "Tienda demo de ropa femenina, outfits urbanos y accesorios color rosa.",
       whatsappNumber: "+56912345678",
       instagramUrl: "https://instagram.com/storelamon",
@@ -125,6 +139,7 @@ async function main() {
     update: {
       planId: proPlan.id,
       planType: PlanType.PRO,
+      publicSlug: "catg-seguridad",
       catalogTemplate: CatalogTemplate.TECH_PRO,
       primaryColor: "#0F172A",
       secondaryColor: "#E0F2FE",
@@ -139,6 +154,7 @@ async function main() {
       planType: PlanType.PRO,
       name: "CATG Seguridad",
       slug: "catg-seguridad",
+      publicSlug: "catg-seguridad",
       description: "Tienda demo de cámaras CCTV, seguridad para casas y locales.",
       whatsappNumber: "+56987654321",
       instagramUrl: "https://instagram.com/catgseguridad",
@@ -302,6 +318,17 @@ async function main() {
     where: { businessId: sec.id },
     update: { planId: proPlan.id },
     create: { businessId: sec.id, planId: proPlan.id }
+  });
+
+  await prisma.membership.upsert({
+    where: { userId_businessId: { userId: storeOwner.id, businessId: store.id } },
+    update: { role: StoreRole.STORE_OWNER },
+    create: { userId: storeOwner.id, businessId: store.id, role: StoreRole.STORE_OWNER }
+  });
+  await prisma.membership.upsert({
+    where: { userId_businessId: { userId: secOwner.id, businessId: sec.id } },
+    update: { role: StoreRole.STORE_OWNER },
+    create: { userId: secOwner.id, businessId: sec.id, role: StoreRole.STORE_OWNER }
   });
 
   console.log("Seed listo. Login demo: storelamon@demo.cl / Demo1234!, seguridad@demo.cl / Demo1234!, admin@demo.cl / Demo1234!");

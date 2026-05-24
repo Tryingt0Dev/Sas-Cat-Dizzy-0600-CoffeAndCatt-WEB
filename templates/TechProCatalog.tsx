@@ -43,7 +43,7 @@ export function TechProCatalog({ business, categories, products, featuredProduct
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_390px]">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_390px]">
         <div>
           {featuredProducts.length > 0 && (
             <div className="mb-8">
@@ -66,7 +66,7 @@ export function TechProCatalog({ business, categories, products, featuredProduct
           )}
         </div>
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <StoreChat businessSlug={business.slug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
+          <StoreChat businessSlug={business.publicSlug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
         </aside>
       </section>
     </main>

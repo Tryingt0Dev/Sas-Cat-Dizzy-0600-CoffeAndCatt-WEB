@@ -13,7 +13,7 @@ export function CatalogControls({
 
   return (
     <form
-      className={compact ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-black/10 bg-white/90 p-3 shadow-sm md:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]"}
+      className={compact ? "grid gap-3 sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-black/10 bg-white/90 p-3 shadow-sm sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]"}
       action=""
       method="get"
     >
@@ -49,11 +49,11 @@ export function CatalogControls({
         <option value="recent">Mas recientes</option>
         <option value="discount">Mayor descuento</option>
       </select>
-      <button className="min-h-11 rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-5 text-sm font-black text-white">
+      <button className="w-full min-h-11 rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-5 text-sm font-black text-white sm:w-auto">
         Filtrar
       </button>
       {hasFilters && (
-        <a className="inline-flex min-h-11 items-center justify-center rounded-[var(--catalog-radius)] border border-black/10 bg-white px-5 text-sm font-black text-gray-700" href="?">
+        <a className="inline-flex w-full min-h-11 items-center justify-center rounded-[var(--catalog-radius)] border border-black/10 bg-white px-5 text-sm font-black text-gray-700 sm:w-auto" href="?">
           Limpiar
         </a>
       )}

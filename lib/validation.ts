@@ -8,6 +8,7 @@ import {
   ProductStatus,
   QuoteStatus
 } from "@/lib/enums";
+import { slugify } from "@/lib/format";
 
 export const requiredString = z.string().trim().min(1);
 export const optionalText = z.string().trim().optional().transform((value) => value || null);
@@ -30,6 +31,35 @@ export const optionalImageUrl = z
   }, "URL de imagen invalida")
   .transform((value) => value || null);
 export const colorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+export const reservedPublicSlugs = new Set([
+  "admin",
+  "api",
+  "dashboard",
+  "login",
+  "register",
+  "pricing",
+  "billing",
+  "settings",
+  "superadmin",
+  "store",
+  "app",
+  "www",
+  "mail",
+  "support"
+]);
+
+export function normalizePublicSlug(value: string) {
+  return slugify(value).slice(0, 80);
+}
+
+export const publicSlugSchema = z
+  .string()
+  .trim()
+  .min(2, "Slug demasiado corto")
+  .max(80, "Slug demasiado largo")
+  .transform(normalizePublicSlug)
+  .refine((value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value), "Slug invalido")
+  .refine((value) => !reservedPublicSlugs.has(value), "Slug reservado");
 
 export function imageUrlBelongsToBusiness(url: string | null | undefined, businessId: string) {
   if (!url) return true;
@@ -82,6 +112,7 @@ export const productFormSchema = z.object({
 
 export const settingsFormSchema = z.object({
   name: requiredString.max(120),
+  publicSlug: publicSlugSchema,
   dashboardTitle: z.string().trim().max(120).optional().transform((value) => value || null),
   dashboardSubtitle: z.string().trim().max(220).optional().transform((value) => value || null),
   description: optionalText,
@@ -105,6 +136,19 @@ export const settingsFormSchema = z.object({
   humanHandoffEnabled: z.boolean().default(false)
 });
 
+export const aiProductContextSchema = z.object({
+  id: z.string().trim().max(120),
+  name: requiredString.max(160),
+  sku: z.string().trim().max(80).nullable().optional().transform((value) => value || null),
+  description: z.string().trim().max(800).nullable().optional().transform((value) => value || null),
+  price: z.coerce.number().int().min(0),
+  compareAtPrice: z.coerce.number().int().min(0).nullable().optional().transform((value) => value ?? null),
+  discountPercent: z.coerce.number().int().min(0).max(100).default(0),
+  finalPrice: z.coerce.number().int().min(0),
+  formattedFinalPrice: z.string().trim().max(80).optional(),
+  stock: z.coerce.number().int().min(0)
+});
+
 export const aiRequestSchema = z
   .object({
     businessSlug: z.string().trim().max(120).optional(),
@@ -115,7 +159,8 @@ export const aiRequestSchema = z
     phone: z.string().trim().max(40).optional(),
     conversationId: z.string().trim().max(120).optional(),
     visitorId: z.string().trim().max(120).optional(),
-    productId: z.string().trim().max(120).optional()
+    productId: z.string().trim().max(120).optional(),
+    productContext: aiProductContextSchema.optional()
   })
   .transform((value, ctx) => {
     const businessSlug = value.businessSlug || value.slug || "";
@@ -132,7 +177,8 @@ export const aiRequestSchema = z
       customerPhone: value.customerPhone || value.phone,
       conversationId: value.conversationId || undefined,
       visitorId: value.visitorId || undefined,
-      productId: value.productId || undefined
+      productId: value.productId || value.productContext?.id || undefined,
+      productContext: value.productContext
     };
   });
 

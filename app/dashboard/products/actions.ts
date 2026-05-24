@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCurrentBusinessContext } from "@/lib/auth";
 import { getFinalPrice, slugify } from "@/lib/format";
 import { ProductStatus } from "@/lib/enums";
 import { imageUrlBelongsToBusiness, productFormSchema } from "@/lib/validation";
 import { effectivePlanLimits } from "@/services/plan-guard";
 import { assertTenantProduct, resolveTenantCategoryId, TenantAccessError } from "@/services/tenant-guard";
+import { requireStoreAccess } from "@/services/authorization";
+import { writeAuditLog } from "@/services/audit-log";
 
 type ProductLimitUser = {
   email: string;
@@ -70,7 +71,7 @@ async function assertProductLimit(businessId: string, user: ProductLimitUser) {
 }
 
 export async function createProductAction(formData: FormData) {
-  const { user, business } = await getCurrentBusinessContext();
+  const { user, business } = await requireStoreAccess({ permission: "manage_products" });
   await assertProductLimit(business.id, user);
 
   const parsed = productPayloadFromForm(formData);
@@ -109,12 +110,12 @@ export async function createProductAction(formData: FormData) {
   }
 
   revalidatePath("/dashboard/products");
-  revalidatePath(`/store/${business.slug}`);
+  revalidatePath(`/store/${business.publicSlug}`);
   redirect("/dashboard/products?success=Producto creado");
 }
 
 export async function updateProductAction(formData: FormData) {
-  const { business } = await getCurrentBusinessContext();
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
   const id = String(formData.get("id") || "");
   if (!id) redirect("/dashboard/products?error=Producto no encontrado");
 
@@ -129,8 +130,8 @@ export async function updateProductAction(formData: FormData) {
     const categoryId = await resolveTenantCategoryId(business.id, parsed.data.categoryId);
     const slug = parsed.data.name !== product.name ? await uniqueProductSlug(business.id, parsed.data.name, id) : product.slug;
 
-    await prisma.product.update({
-      where: { id },
+    await prisma.product.updateMany({
+      where: { id, businessId: business.id },
       data: {
         categoryId,
         name: parsed.data.name,
@@ -155,12 +156,12 @@ export async function updateProductAction(formData: FormData) {
   }
 
   revalidatePath("/dashboard/products");
-  revalidatePath(`/store/${business.slug}`);
+  revalidatePath(`/store/${business.publicSlug}`);
   redirect("/dashboard/products?success=Producto actualizado");
 }
 
 export async function duplicateProductAction(formData: FormData) {
-  const { user, business } = await getCurrentBusinessContext();
+  const { user, business } = await requireStoreAccess({ permission: "manage_products" });
   await assertProductLimit(business.id, user);
   const id = String(formData.get("id") || "");
 
@@ -195,30 +196,38 @@ export async function duplicateProductAction(formData: FormData) {
   }
 
   revalidatePath("/dashboard/products");
-  revalidatePath(`/store/${business.slug}`);
+  revalidatePath(`/store/${business.publicSlug}`);
   redirect("/dashboard/products?success=Producto duplicado como borrador");
 }
 
 export async function deleteProductAction(formData: FormData) {
-  const { business } = await getCurrentBusinessContext();
+  const { user, business } = await requireStoreAccess({ permission: "manage_products" });
   const id = String(formData.get("id") || "");
   if (!id) redirect("/dashboard/products?error=Producto inválido");
-  await assertTenantProduct(business.id, id);
-  await prisma.product.delete({ where: { id } });
+  const product = await assertTenantProduct(business.id, id);
+  await prisma.product.deleteMany({ where: { id, businessId: business.id } });
+  await writeAuditLog({
+    userId: user.id,
+    businessId: business.id,
+    action: "product.delete",
+    resourceType: "Product",
+    resourceId: product.id,
+    metadata: { name: product.name, slug: product.slug }
+  });
   revalidatePath("/dashboard/products");
-  revalidatePath(`/store/${business.slug}`);
+  revalidatePath(`/store/${business.publicSlug}`);
   redirect("/dashboard/products?success=Producto eliminado");
 }
 
 export async function quickDiscountAction(formData: FormData) {
-  const { business } = await getCurrentBusinessContext();
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
   const id = String(formData.get("id") || "");
   const product = await assertTenantProduct(business.id, id);
   const finalPrice = getFinalPrice(product.price, product.discountPercent);
-  await prisma.product.update({
-    where: { id: product.id },
+  await prisma.product.updateMany({
+    where: { id: product.id, businessId: business.id },
     data: { compareAtPrice: product.price, price: finalPrice, discountPercent: 0 }
   });
   revalidatePath("/dashboard/products");
-  revalidatePath(`/store/${business.slug}`);
+  revalidatePath(`/store/${business.publicSlug}`);
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { Select } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
@@ -12,7 +12,7 @@ import { updateOrderStatusAction } from "./actions";
 
 export default async function OrdersPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const [orders, acceptedQuotes] = await Promise.all([
     prisma.order.findMany({
       where: { businessId: business.id },

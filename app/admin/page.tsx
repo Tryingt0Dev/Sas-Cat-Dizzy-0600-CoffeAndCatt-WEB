@@ -59,7 +59,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
               <tbody>
                 {businesses.map((business) => (
                   <tr key={business.id} className="border-b border-gray-100">
-                    <td className="py-4 font-semibold">{business.name}<br /><span className="text-xs text-gray-400">/{business.slug}</span></td>
+                    <td className="py-4 font-semibold">{business.name}<br /><span className="text-xs text-gray-400">/store/{business.publicSlug}</span></td>
                     <td>{business.owner.email}</td>
                     <td>{planDisplayName(business.plan, business.owner)}</td>
                     <td>{business.isActive ? "Activa" : "Suspendida"}</td>

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { PrintButton } from "@/components/PrintButton";
 import { formatCLP } from "@/lib/format";
 
 export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const quote = await prisma.quote.findFirst({
     where: { id, businessId: business.id },
     include: { customer: true, items: true }

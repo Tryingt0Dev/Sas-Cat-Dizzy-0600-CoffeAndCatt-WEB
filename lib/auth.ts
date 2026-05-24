@@ -3,15 +3,23 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
-import { UserRole } from "@/lib/enums";
+import { StoreRole, UserRole } from "@/lib/enums";
 
 const SESSION_COOKIE = "catg_session";
+export const SELECTED_BUSINESS_COOKIE = "catg_selected_business";
 const PLATFORM_OWNER_EMAIL_KEYS = ["PLATFORM_OWNER_EMAILS", "PLATFORM_ADMIN_EMAILS", "OWNER_EMAILS", "ADMIN_EMAIL"] as const;
+const ADMIN_BOOTSTRAP_SECRET_MIN_LENGTH = 32;
 
 type UserAccessIdentity = {
   email: string;
   role: string;
 };
+
+export class BootstrapSecretError extends Error {
+  constructor(message = "Bootstrap de administrador invalido") {
+    super(message);
+  }
+}
 
 function configuredPlatformOwnerEmails() {
   return PLATFORM_OWNER_EMAIL_KEYS.flatMap((key) => (process.env[key] ?? "").split(","))
@@ -21,8 +29,39 @@ function configuredPlatformOwnerEmails() {
 
 export function hasPlatformAccess(user: UserAccessIdentity | null | undefined) {
   if (!user) return false;
-  if (user.role === UserRole.PLATFORM_ADMIN) return true;
+  return user.role === UserRole.PLATFORM_ADMIN;
+}
+
+export function hasDeveloperPlanAccess(user: UserAccessIdentity | null | undefined) {
+  if (!user || process.env.NODE_ENV === "production") return false;
+  if (process.env.PLATFORM_OWNER_EMAILS_DEV_UNLOCK !== "true") return false;
   return configuredPlatformOwnerEmails().includes(user.email.toLowerCase());
+}
+
+export function hasFullPlanAccess(user: UserAccessIdentity | null | undefined) {
+  return hasPlatformAccess(user) || hasDeveloperPlanAccess(user);
+}
+
+function safeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+export function resolvePublicRegistrationRole(input: { adminBootstrapSecret?: string | null }) {
+  const suppliedSecret = input.adminBootstrapSecret?.trim();
+  if (!suppliedSecret) return UserRole.USER;
+
+  const configuredSecret = process.env.ADMIN_BOOTSTRAP_SECRET?.trim();
+  if (!configuredSecret || configuredSecret.length < ADMIN_BOOTSTRAP_SECRET_MIN_LENGTH) {
+    throw new BootstrapSecretError("ADMIN_BOOTSTRAP_SECRET no esta configurado de forma segura");
+  }
+
+  if (!safeEqual(suppliedSecret, configuredSecret)) {
+    throw new BootstrapSecretError("ADMIN_BOOTSTRAP_SECRET invalido");
+  }
+
+  return UserRole.PLATFORM_ADMIN;
 }
 
 export async function hashPassword(password: string) {
@@ -59,9 +98,17 @@ export async function destroySession() {
   ck.delete(SESSION_COOKIE);
 }
 
-export async function getCurrentUser() {
-  const ck = await cookies();
-  const token = ck.get(SESSION_COOKIE)?.value;
+function getCookieFromRequest(req: Request, name: string) {
+  const cookieHeader = req.headers.get("cookie") ?? "";
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
+export async function getCurrentUser(req?: Request) {
+  const token = req ? getCookieFromRequest(req, SESSION_COOKIE) : (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const session = await prisma.session.findUnique({
@@ -77,26 +124,58 @@ export async function getCurrentUser() {
   return session.user;
 }
 
-export async function requireUser() {
-  const user = await getCurrentUser();
+export async function requireUser(req?: Request) {
+  const user = await getCurrentUser(req);
   if (!user) redirect("/login");
   return user;
 }
 
-export async function requirePlatformAdmin() {
-  const user = await requireUser();
+export async function requirePlatformAdmin(req?: Request) {
+  const user = await requireUser(req);
   if (!hasPlatformAccess(user)) redirect("/dashboard");
   return user;
 }
 
 export async function getCurrentBusinessContext() {
   const user = await requireUser();
-  const business = await prisma.business.findFirst({
-    where: { ownerId: user.id, isActive: true },
-    orderBy: { createdAt: "asc" }
+  const ck = await cookies();
+  const selectedBusinessId = ck.get(SELECTED_BUSINESS_COOKIE)?.value;
+  const tenantWhere = hasPlatformAccess(user)
+    ? {}
+    : {
+        OR: [
+          { ownerId: user.id },
+          { memberships: { some: { userId: user.id } } }
+        ]
+      };
+  const where = {
+    isActive: true,
+    ...(selectedBusinessId ? { id: selectedBusinessId } : {}),
+    ...tenantWhere
+  };
+  let business = await prisma.business.findFirst({
+    where,
+    include: { memberships: { where: { userId: user.id }, take: 1 } }
   });
+
+  if (!business && !selectedBusinessId) {
+    const businesses = await prisma.business.findMany({
+      where: { isActive: true, ...tenantWhere },
+      include: { memberships: { where: { userId: user.id }, take: 1 } },
+      orderBy: { createdAt: "asc" },
+      take: 2
+    });
+    if (businesses.length === 1) business = businesses[0];
+    if (businesses.length > 1) redirect("/select-store");
+  }
+
   if (!business) redirect("/login?error=No tienes una tienda activa o tu tienda está suspendida");
-  return { user, business };
+  const storeRole = hasPlatformAccess(user)
+    ? StoreRole.STORE_OWNER
+    : business.ownerId === user.id
+      ? StoreRole.STORE_OWNER
+      : ((business.memberships[0]?.role as StoreRole | undefined) ?? StoreRole.VIEWER);
+  return { user, business, storeRole };
 }
 
 export async function getCurrentBusiness() {

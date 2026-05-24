@@ -27,10 +27,31 @@ export type CatalogProduct = {
   category: CatalogCategory | null;
 };
 
+export type ProductAiContext = {
+  id: string;
+  name: string;
+  sku: string | null;
+  description: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  discountPercent: number;
+  finalPrice: number;
+  formattedFinalPrice: string;
+  stock: number;
+};
+
+export type StoreChatAskDetail = {
+  message: string;
+  productId?: string;
+  productContext?: ProductAiContext;
+  autoSend: boolean;
+};
+
 export type CatalogBusiness = {
   id: string;
   name: string;
   slug: string;
+  publicSlug: string;
   description: string | null;
   logoUrl: string | null;
   bannerUrl: string | null;
@@ -107,6 +128,11 @@ export function getCatalogThemeStyle(business: CatalogBusiness): CatalogThemeSty
     backgroundColor: business.backgroundColor,
     color: business.textColor
   };
+}
+
+export function buildProductAiQuestion(product: ProductAiContext) {
+  const sku = product.sku?.trim() || "N/D";
+  return `Quiero información sobre este producto: ${product.name}, SKU ${sku}, precio ${product.formattedFinalPrice}, stock ${product.stock}.`;
 }
 
 export function buildWhatsappHref(business: CatalogBusiness, product?: CatalogProduct) {

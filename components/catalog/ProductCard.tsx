@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AskAiButton } from "@/components/catalog/AskAiButton";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { WhatsAppProductButton } from "@/components/catalog/WhatsAppProductButton";
-import { defaultProductImage, type CatalogBusiness, type CatalogProduct } from "@/lib/catalog";
+import { buildProductAiQuestion, defaultProductImage, type CatalogBusiness, type CatalogProduct, type ProductAiContext } from "@/lib/catalog";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 
 type ProductCardVariant = "modern" | "premium" | "fast" | "tech";
@@ -23,7 +23,19 @@ export function ProductCard({
   const premium = variant === "premium";
   const fast = variant === "fast";
   const tech = variant === "tech";
-  const productHref = `/store/${business.slug}/product/${product.slug}`;
+  const productHref = `/store/${business.publicSlug}/product/${product.slug}`;
+  const productAiContext: ProductAiContext = {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    price: product.price,
+    compareAtPrice: product.compareAtPrice,
+    discountPercent: product.discountPercent,
+    finalPrice,
+    formattedFinalPrice,
+    stock: product.stock
+  };
   const askButtonClass = fast
     ? "min-h-11 rounded-[var(--catalog-radius)] bg-[var(--catalog-accent)] px-4 text-sm font-black text-white"
     : "min-h-11 rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm font-black text-[var(--catalog-text)]";
@@ -77,19 +89,20 @@ export function ProductCard({
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <WhatsAppProductButton
             whatsappNumber={business.whatsappNumber}
-            businessSlug={business.slug}
+            businessSlug={business.publicSlug}
             businessName={business.name}
             productId={product.id}
             productName={product.name}
             formattedPrice={formattedFinalPrice}
             storePath={productHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-4 text-center text-sm font-black text-white"
-            disabledClassName="inline-flex min-h-11 items-center justify-center rounded-[var(--catalog-radius)] bg-gray-100 px-4 text-center text-sm font-black text-gray-500"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-4 text-center text-sm font-black text-white"
+            disabledClassName="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--catalog-radius)] bg-gray-100 px-4 text-center text-sm font-black text-gray-500"
           />
           <AskAiButton
             productId={product.id}
-            question={`Hola, quiero consultar por el producto ${product.name}. ¿Tiene stock, precio y detalles?`}
-            className={askButtonClass}
+            productContext={productAiContext}
+            question={buildProductAiQuestion(productAiContext)}
+            className={`${askButtonClass} w-full`}
           />
         </div>
       </div>

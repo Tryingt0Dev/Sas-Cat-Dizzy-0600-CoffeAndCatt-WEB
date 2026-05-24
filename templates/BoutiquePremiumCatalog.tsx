@@ -12,7 +12,7 @@ export function BoutiquePremiumCatalog({ business, categories, products, feature
   return (
     <main className="min-h-screen bg-[var(--catalog-bg)]" style={themeStyle}>
       <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div className="py-8">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--catalog-accent)]">{business.businessType ?? "Boutique"}</p>
           <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-tight md:text-7xl">{business.name}</h1>
@@ -27,7 +27,7 @@ export function BoutiquePremiumCatalog({ business, categories, products, feature
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1fr_380px]">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1fr_380px]">
         <div className="space-y-12">
           {featuredProducts.length > 0 && (
             <div>
@@ -56,7 +56,7 @@ export function BoutiquePremiumCatalog({ business, categories, products, feature
           </div>
         </div>
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <StoreChat businessSlug={business.slug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
+          <StoreChat businessSlug={business.publicSlug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
         </aside>
       </section>
     </main>

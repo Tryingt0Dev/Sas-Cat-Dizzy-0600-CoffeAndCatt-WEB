@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getCurrentBusinessContext, hasPlatformAccess } from "@/lib/auth";
 import { logoutAction } from "@/app/(auth)/actions";
-import { planDisplayName } from "@/services/plan-guard";
+import { requireStoreAccess } from "@/services/authorization";
 
 const links = [
   ["Panel", "/dashboard"],
@@ -15,10 +14,9 @@ const links = [
 ];
 
 export async function DashboardNav() {
-  const { user, business } = await getCurrentBusinessContext();
+  const { user, business, isPlatformAdmin, plan } = await requireStoreAccess({ permission: "view_dashboard" });
   const displayName = business.dashboardTitle || business.name;
-  const effectivePlanName = planDisplayName(null, user);
-  const planLabel = hasPlatformAccess(user) ? effectivePlanName : `Plan ${business.planType}`;
+  const planLabel = plan.name ? `Plan ${plan.name}` : `Plan ${business.planType}`;
 
   return (
     <aside className="border-r border-gray-200 bg-white p-5 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
@@ -41,7 +39,7 @@ export async function DashboardNav() {
             {label}
           </Link>
         ))}
-        {hasPlatformAccess(user) && (
+        {isPlatformAdmin && (
           <Link href="/admin" className="block rounded-2xl px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-100">
             Superadmin
           </Link>
@@ -49,8 +47,8 @@ export async function DashboardNav() {
       </nav>
       <div className="mt-8 rounded-3xl bg-gray-50 p-4 text-sm text-gray-600">
         <p className="font-bold text-gray-900">Catálogo público</p>
-        <Link className="mt-2 block text-pink-600" href={`/store/${business.slug}`} target="_blank">
-          /store/{business.slug}
+        <Link className="mt-2 block text-pink-600" href={`/store/${business.publicSlug}`} target="_blank">
+          /store/{business.publicSlug}
         </Link>
         <Link className="mt-3 inline-flex rounded-2xl bg-white px-3 py-2 text-xs font-black text-gray-700 shadow-sm" href="/dashboard/settings">
           Personalizar panel

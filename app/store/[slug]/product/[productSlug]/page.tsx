@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { AskAiButton } from "@/components/catalog/AskAiButton";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { CatalogProductTracker } from "@/components/catalog/CatalogProductTracker";
@@ -8,7 +8,7 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { WhatsAppProductButton } from "@/components/catalog/WhatsAppProductButton";
 import { StoreChat } from "@/components/StoreChat";
-import { defaultProductImage, getCatalogThemeStyle, type CatalogBusiness } from "@/lib/catalog";
+import { buildProductAiQuestion, defaultProductImage, getCatalogThemeStyle, type CatalogBusiness, type ProductAiContext } from "@/lib/catalog";
 import { prisma } from "@/lib/db";
 import { ProductStatus } from "@/lib/enums";
 import { formatCLP, getFinalPrice } from "@/lib/format";
@@ -19,7 +19,7 @@ type ProductPageProps = {
 
 async function getProductPageData(slug: string, productSlug: string) {
   const business = await prisma.business.findFirst({
-    where: { slug, isActive: true },
+    where: { publicSlug: slug, isActive: true },
     include: {
       products: {
         where: { slug: productSlug, status: ProductStatus.ACTIVE },
@@ -30,7 +30,17 @@ async function getProductPageData(slug: string, productSlug: string) {
   });
 
   const product = business?.products[0];
-  if (!business || !product) return null;
+  if (!business) {
+    const slugHistory = await prisma.businessSlugHistory.findUnique({
+      where: { slug },
+      include: { business: { select: { publicSlug: true, isActive: true } } }
+    });
+    if (slugHistory?.business.isActive) {
+      return { redirectTo: `/store/${slugHistory.business.publicSlug}/product/${productSlug}` as const };
+    }
+    return null;
+  }
+  if (!product) return null;
 
   const [relatedProducts, productCount, categoryCount] = await Promise.all([
     prisma.product.findMany({
@@ -55,6 +65,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { slug, productSlug } = await params;
   const data = await getProductPageData(slug, productSlug);
   if (!data) return { title: "Producto no encontrado" };
+  if ("redirectTo" in data) return { title: "Producto movido" };
 
   const { business, product } = data;
   const finalPrice = formatCLP(getFinalPrice(product.price, product.discountPercent));
@@ -76,6 +87,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 export default async function ProductDetailPage({ params }: ProductPageProps) {
   const { slug, productSlug } = await params;
   const data = await getProductPageData(slug, productSlug);
+  if (data && "redirectTo" in data && data.redirectTo) permanentRedirect(data.redirectTo);
   if (!data) notFound();
 
   const { business, product, relatedProducts, productCount, categoryCount } = data;
@@ -83,6 +95,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     id: business.id,
     name: business.name,
     slug: business.slug,
+    publicSlug: business.publicSlug,
     description: business.description,
     logoUrl: business.logoUrl,
     bannerUrl: business.bannerUrl,
@@ -102,16 +115,28 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   const formattedFinalPrice = formatCLP(finalPrice);
   const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
   const outOfStock = product.stock <= 0;
-  const productHref = `/store/${business.slug}/product/${product.slug}`;
+  const productHref = `/store/${business.publicSlug}/product/${product.slug}`;
+  const productAiContext: ProductAiContext = {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    price: product.price,
+    compareAtPrice: product.compareAtPrice,
+    discountPercent: product.discountPercent,
+    finalPrice,
+    formattedFinalPrice,
+    stock: product.stock
+  };
 
   return (
     <main className="min-h-screen bg-[var(--catalog-bg)]" style={themeStyle}>
-      <CatalogProductTracker businessSlug={business.slug} productId={product.id} />
+      <CatalogProductTracker businessSlug={business.publicSlug} productId={product.id} />
       <CatalogHeader business={catalogBusiness} productCount={productCount} categoryCount={categoryCount} />
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_430px]">
+      <section className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_430px]">
         <div className="space-y-8">
-          <Link href={`/store/${business.slug}`} className="inline-flex text-sm font-black text-[var(--catalog-accent)]">
+          <Link href={`/store/${business.publicSlug}`} className="inline-flex text-sm font-black text-[var(--catalog-accent)]">
             Volver al catalogo
           </Link>
           <div className="overflow-hidden rounded-[var(--catalog-radius)] border border-black/10 bg-white shadow-sm">
@@ -172,7 +197,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             <div className="mt-6 grid gap-3">
               <WhatsAppProductButton
                 whatsappNumber={business.whatsappNumber}
-                businessSlug={business.slug}
+                businessSlug={business.publicSlug}
                 businessName={business.name}
                 productId={product.id}
                 productName={product.name}
@@ -183,13 +208,14 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               />
               <AskAiButton
                 productId={product.id}
-                question={`Hola, quiero consultar por el producto ${product.name}. ¿Tiene stock, precio y detalles?`}
+                productContext={productAiContext}
+                question={buildProductAiQuestion(productAiContext)}
                 className="min-h-12 rounded-[var(--catalog-radius)] border border-black/10 bg-white px-5 text-sm font-black text-[var(--catalog-text)]"
               />
             </div>
           </div>
 
-          <StoreChat businessSlug={business.slug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
+          <StoreChat businessSlug={business.publicSlug} accentColor={business.accentColor} buttonRadius={business.buttonRadius} />
         </aside>
       </section>
     </main>

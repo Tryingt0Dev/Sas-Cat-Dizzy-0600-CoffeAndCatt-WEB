@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { PageHeader } from "@/components/PageHeader";
@@ -19,7 +19,7 @@ function parseIntent(metadata: string | null) {
 }
 
 export default async function DashboardPage() {
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "view_dashboard" });
   const [
     activeProducts,
     newLeads,
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
     {
       label: "Prueba el vendedor IA",
       description: "Envia una consulta desde el catalogo publico.",
-      href: `/store/${business.slug}`,
+      href: `/store/${business.publicSlug}`,
       done: aiMessages.length > 0 || openConversations > 0
     }
   ];
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
   ];
   const quickActions = [
     { label: "Nuevo producto", description: "Agrega inventario con foto, precio y stock.", href: "/dashboard/products" },
-    { label: "Ver catálogo", description: "Revisa la experiencia pública del cliente.", href: `/store/${business.slug}`, external: true },
+    { label: "Ver catálogo", description: "Revisa la experiencia pública del cliente.", href: `/store/${business.publicSlug}`, external: true },
     { label: "Personalizar panel", description: "Cambia nombre interno, colores, logo e IA.", href: "/dashboard/settings" },
     { label: "Revisar leads", description: "Atiende clientes nuevos y conversaciones abiertas.", href: "/dashboard/customers" }
   ];
@@ -152,7 +152,7 @@ export default async function DashboardPage() {
         description={dashboardDescription}
         actions={
           <>
-            <Link href={`/store/${business.slug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            <Link href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
               Ver catálogo
             </Link>
             <Link href="/dashboard/settings" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white shadow-sm">
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Acciones rápidas</p>
               <h2 className="mt-1 text-xl font-black">Lo más usado para operar la tienda</h2>
             </div>
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.slug}</span>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.publicSlug}</span>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {quickActions.map((action) => (
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <OnboardingChecklist items={onboardingItems} />
-        <StoreShareCard businessName={business.name} storePath={`/store/${business.slug}`} />
+        <StoreShareCard businessName={business.name} storePath={`/store/${business.publicSlug}`} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

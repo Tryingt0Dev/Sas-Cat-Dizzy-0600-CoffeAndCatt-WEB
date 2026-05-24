@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   description: "Catálogo + IA vendedora + CRM para tiendas"
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">

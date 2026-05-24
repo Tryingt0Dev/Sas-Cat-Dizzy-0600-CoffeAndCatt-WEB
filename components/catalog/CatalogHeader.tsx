@@ -17,7 +17,7 @@ export function CatalogHeader({
   return (
     <header className="border-b border-black/10 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-        <Link href={`/store/${business.slug}`} className="flex min-w-0 items-center gap-3">
+        <Link href={`/store/${business.publicSlug}`} className="flex min-w-0 items-center gap-3">
           {business.logoUrl ? (
             <SafeImage src={business.logoUrl} fallback={defaultProductImage} alt={`${business.name} logo`} className="h-12 w-12 rounded-[var(--catalog-radius)] object-cover" />
           ) : (

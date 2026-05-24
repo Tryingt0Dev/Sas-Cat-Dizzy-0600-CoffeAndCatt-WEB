@@ -49,7 +49,7 @@ export function StoreShareCard({
     try {
       await navigator.share({
         title: businessName,
-        text: `Mira el catalogo de ${businessName}`,
+        text: `Hola, revisa nuestro catálogo aquí: ${shareUrl}`,
         url: shareUrl
       });
       setStatus("Catalogo compartido");
@@ -57,6 +57,8 @@ export function StoreShareCard({
       setStatus(null);
     }
   }
+
+  const whatsappShareHref = `https://wa.me/?text=${encodeURIComponent(`Hola, revisa nuestro catálogo aquí: ${shareUrl}`)}`;
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -68,8 +70,8 @@ export function StoreShareCard({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
-        <div className="flex h-[220px] w-[220px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 p-3">
+      <div className="mt-5 grid gap-5 grid-cols-1 md:grid-cols-[minmax(0,220px)_1fr] md:items-center">
+        <div className="flex aspect-square w-full max-w-[220px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 p-3">
           {qrDataUrl ? <img src={qrDataUrl} alt={`QR del catalogo de ${businessName}`} className="h-full w-full" /> : <span className="text-sm font-bold text-gray-400">Generando QR...</span>}
         </div>
 
@@ -87,9 +89,15 @@ export function StoreShareCard({
             <button type="button" onClick={copyLink} className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white">
               Copiar link
             </button>
+            <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">
+              Abrir catálogo
+            </a>
             <button type="button" onClick={shareStore} className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">
               Compartir
             </button>
+            <a href={whatsappShareHref} target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">
+              WhatsApp
+            </a>
             {qrDataUrl && (
               <a href={qrDataUrl} download={`qr-${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`} className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">
                 Descargar QR

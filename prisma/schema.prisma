@@ -131,11 +131,14 @@ model Plan {
   type                      String         @unique
   name                      String
   maxProducts               Int
+  maxCategories             Int            @default(10)
   maxAiConversationsMonthly Int
   maxUsers                  Int
+  maxStores                 Int            @default(1)
   maxTemplates              Int
   advancedBranding          Boolean        @default(false)
   quotesAndOrders           Boolean        @default(false)
+  customDomain              Boolean        @default(false)
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
   businesses                Business[]

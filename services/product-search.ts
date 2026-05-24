@@ -5,8 +5,10 @@ import { getFinalPrice } from "@/lib/format";
 export type RelevantProduct = {
   id: string;
   name: string;
+  sku: string | null;
   description: string | null;
   price: number;
+  compareAtPrice: number | null;
   discountPercent: number;
   finalPrice: number;
   stock: number;
@@ -17,8 +19,10 @@ export type RelevantProduct = {
 type SearchableProduct = {
   id: string;
   name: string;
+  sku: string | null;
   description: string | null;
   price: number;
+  compareAtPrice: number | null;
   discountPercent: number;
   stock: number;
   featured: boolean;
@@ -154,15 +158,17 @@ function findAttributes(text: string, attributes: CatalogAttribute[]) {
 }
 
 function productHaystack(product: SearchableProduct) {
-  return normalizeText(`${product.name} ${product.description ?? ""} ${product.tags ?? ""} ${product.category?.name ?? ""}`);
+  return normalizeText(`${product.name} ${product.sku ?? ""} ${product.description ?? ""} ${product.tags ?? ""} ${product.category?.name ?? ""}`);
 }
 
 function toRelevantProduct(product: SearchableProduct): RelevantProduct {
   return {
     id: product.id,
     name: product.name,
+    sku: product.sku,
     description: product.description,
     price: product.price,
+    compareAtPrice: product.compareAtPrice,
     discountPercent: product.discountPercent,
     finalPrice: getFinalPrice(product.price, product.discountPercent),
     stock: product.stock,

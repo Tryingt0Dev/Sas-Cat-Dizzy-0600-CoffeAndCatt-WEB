@@ -4,12 +4,12 @@ import { Card } from "@/components/Card";
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ffe4f3,transparent_30%),#f8fafc]">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+      <nav className="mx-auto flex w-full flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.35em] text-pink-500">CATG</p>
           <h1 className="text-xl font-black">OmniVentas SaaS</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold" href="/login">Entrar</Link>
           <Link className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white" href="/register">Crear tienda</Link>
         </div>

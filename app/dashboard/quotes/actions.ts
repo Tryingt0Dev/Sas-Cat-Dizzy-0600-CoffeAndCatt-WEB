@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
 import { getFinalPrice } from "@/lib/format";
 import { CustomerStatus, enumValues, QuoteStatus, type QuoteStatus as QuoteStatusValue } from "@/lib/enums";
 import {
@@ -14,6 +13,8 @@ import {
   TenantAccessError
 } from "@/services/tenant-guard";
 import { assertQuotesAndOrdersAllowed, PlanAccessError } from "@/services/plan-guard";
+import { requireStoreAccess } from "@/services/authorization";
+import { writeAuditLog } from "@/services/audit-log";
 
 function parseDiscount(value: FormDataEntryValue | null) {
   const parsed = Number.parseInt(String(value ?? "0"), 10);
@@ -29,7 +30,7 @@ function parseQuoteItems(formData: FormData) {
 }
 
 export async function createQuoteAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { user, business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const customerId = String(formData.get("customerId") || "").trim() || null;
   const conversationId = String(formData.get("conversationId") || "").trim() || null;
   const rawItems = parseQuoteItems(formData);
@@ -65,7 +66,7 @@ export async function createQuoteAction(formData: FormData) {
     const validUntilDate = validUntilRaw ? new Date(validUntilRaw) : null;
     const validUntil = validUntilDate && !Number.isNaN(validUntilDate.getTime()) ? validUntilDate : null;
 
-    await prisma.quote.create({
+    const quote = await prisma.quote.create({
       data: {
         businessId: business.id,
         customerId,
@@ -81,11 +82,19 @@ export async function createQuoteAction(formData: FormData) {
     });
 
     if (customerId) {
-      await prisma.customer.update({
-        where: { id: customerId },
+      await prisma.customer.updateMany({
+        where: { id: customerId, businessId: business.id },
         data: { status: CustomerStatus.QUOTE_SENT }
       });
     }
+    await writeAuditLog({
+      userId: user.id,
+      businessId: business.id,
+      action: "quote.create",
+      resourceType: "Quote",
+      resourceId: quote.id,
+      metadata: { total, itemCount: items.length }
+    });
   } catch (error) {
     if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     if (error instanceof TenantAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
@@ -97,14 +106,22 @@ export async function createQuoteAction(formData: FormData) {
 }
 
 export async function updateQuoteStatusAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { user, business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const id = String(formData.get("id") || "");
   const status = String(formData.get("status") || "");
   if (!enumValues(QuoteStatus).includes(status as QuoteStatusValue)) redirect("/dashboard/quotes?error=Estado inválido");
   try {
     await assertQuotesAndOrdersAllowed(business.id);
-    await assertTenantQuote(business.id, id);
-    await prisma.quote.update({ where: { id }, data: { status } });
+    const quote = await assertTenantQuote(business.id, id);
+    await prisma.quote.updateMany({ where: { id, businessId: business.id }, data: { status } });
+    await writeAuditLog({
+      userId: user.id,
+      businessId: business.id,
+      action: "quote.status.update",
+      resourceType: "Quote",
+      resourceId: quote.id,
+      metadata: { from: quote.status, to: status }
+    });
   } catch (error) {
     if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
     if (error instanceof TenantAccessError) redirect(`/dashboard/quotes?error=${error.message}`);
@@ -115,8 +132,9 @@ export async function updateQuoteStatusAction(formData: FormData) {
 }
 
 export async function createOrderFromQuoteAction(formData: FormData) {
-  const business = await getCurrentBusiness();
+  const { user, business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const quoteId = String(formData.get("quoteId") || "");
+  let createdOrderId: string | null = null;
 
   try {
     await assertQuotesAndOrdersAllowed(business.id);
@@ -138,13 +156,13 @@ export async function createOrderFromQuoteAction(formData: FormData) {
         if (!product || product.stock < item.quantity) {
           throw new TenantAccessError(`Stock insuficiente para ${item.name}`);
         }
-        await tx.product.update({
-          where: { id: product.id },
+        await tx.product.updateMany({
+          where: { id: product.id, businessId: business.id },
           data: { stock: { decrement: item.quantity } }
         });
       }
 
-      await tx.order.create({
+      const order = await tx.order.create({
         data: {
           businessId: business.id,
           customerId: quote.customerId,
@@ -164,6 +182,15 @@ export async function createOrderFromQuoteAction(formData: FormData) {
           }
         }
       });
+      createdOrderId = order.id;
+    });
+    await writeAuditLog({
+      userId: user.id,
+      businessId: business.id,
+      action: "order.create_from_quote",
+      resourceType: "Order",
+      resourceId: createdOrderId,
+      metadata: { quoteId }
     });
   } catch (error) {
     if (error instanceof PlanAccessError) redirect(`/dashboard/quotes?error=${error.message}`);

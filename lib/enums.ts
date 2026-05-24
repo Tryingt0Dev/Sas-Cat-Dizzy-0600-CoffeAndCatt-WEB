@@ -4,6 +4,14 @@ export const UserRole = {
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+export const StoreRole = {
+  STORE_OWNER: "STORE_OWNER",
+  STORE_ADMIN: "STORE_ADMIN",
+  STORE_STAFF: "STORE_STAFF",
+  VIEWER: "VIEWER"
+} as const;
+export type StoreRole = (typeof StoreRole)[keyof typeof StoreRole];
+
 export const CatalogTemplate = {
   MODERN_GRID: "MODERN_GRID",
   BOUTIQUE_PREMIUM: "BOUTIQUE_PREMIUM",

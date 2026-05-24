@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 
 export default async function ConversationsPage() {
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_conversations" });
   const conversations = await prisma.conversation.findMany({
     where: { businessId: business.id },
     include: {

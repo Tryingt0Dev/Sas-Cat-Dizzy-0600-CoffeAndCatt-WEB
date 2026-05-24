@@ -17,7 +17,7 @@ export async function assertBusinessOwner(userId: string, businessId: string) {
 
 export async function getBusinessBySlugForPublic(slug: string) {
   return prisma.business.findFirst({
-    where: { slug, isActive: true },
+    where: { publicSlug: slug, isActive: true },
     include: { aiSettings: true }
   });
 }

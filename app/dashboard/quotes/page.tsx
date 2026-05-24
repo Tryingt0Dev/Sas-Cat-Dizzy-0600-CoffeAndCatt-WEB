@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getCurrentBusiness } from "@/lib/auth";
+import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { CopyButton } from "@/components/CopyButton";
 import { Input, Select, Textarea } from "@/components/Input";
@@ -22,7 +22,7 @@ function quoteWhatsappText(quote: {
 
 export default async function QuotesPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const business = await getCurrentBusiness();
+  const { business } = await requireStoreAccess({ permission: "manage_quotes_orders" });
   const [quotes, customers, conversations, products] = await Promise.all([
     prisma.quote.findMany({
       where: { businessId: business.id },
