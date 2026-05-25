@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { CatalogTemplate } from "@/lib/enums";
+import { getCatalogPaletteBySlug, getCatalogPaletteCssVariables, defaultCatalogPaletteSlug } from "@/lib/themes/theme-utils";
 
 export type CatalogCategory = {
   id: string;
@@ -62,6 +63,7 @@ export type CatalogBusiness = {
   address: string | null;
   welcomeMessage?: string | null;
   catalogTemplate: string;
+  catalogPalette?: string | null;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
@@ -121,15 +123,11 @@ export const defaultProductImage =
   "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=1200&auto=format&fit=crop";
 
 export function getCatalogThemeStyle(business: CatalogBusiness): CatalogThemeStyle {
+  const palette = getCatalogPaletteBySlug(business.catalogPalette ?? defaultCatalogPaletteSlug);
   return {
-    "--catalog-primary": business.primaryColor,
-    "--catalog-secondary": business.secondaryColor,
-    "--catalog-accent": business.accentColor,
-    "--catalog-bg": business.backgroundColor,
-    "--catalog-text": business.textColor,
-    "--catalog-radius": `${business.buttonRadius}px`,
-    backgroundColor: business.backgroundColor,
-    color: business.textColor
+    ...(getCatalogPaletteCssVariables(palette, business.buttonRadius) as unknown as CatalogThemeStyle),
+    backgroundColor: palette.colors.background,
+    color: palette.colors.text
   };
 }
 

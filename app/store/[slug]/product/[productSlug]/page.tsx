@@ -105,6 +105,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     businessType: business.businessType,
     address: business.address,
     catalogTemplate: business.catalogTemplate,
+    catalogPalette: business.catalogPalette,
     primaryColor: business.primaryColor,
     secondaryColor: business.secondaryColor,
     accentColor: business.accentColor,

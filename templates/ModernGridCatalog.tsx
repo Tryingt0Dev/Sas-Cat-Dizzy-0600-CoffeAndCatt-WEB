@@ -24,8 +24,8 @@ export function ModernGridCatalog({ business, categories, products, featuredProd
               {business.address && <span className="rounded-full bg-white/15 px-4 py-2">{business.address}</span>}
             </div>
           </div>
-          <div className="rounded-[var(--catalog-radius)] bg-white/95 p-4 text-[var(--catalog-text)] shadow-xl">
-            <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-gray-400">Encuentra rapido</p>
+          <div className="rounded-[var(--catalog-radius)] bg-[var(--catalog-surface)] p-4 text-[var(--catalog-text)] shadow-xl">
+            <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-[var(--catalog-text-muted)]">Encuentra rapido</p>
             <CatalogControls categories={categories} searchState={searchState} compact />
           </div>
         </div>

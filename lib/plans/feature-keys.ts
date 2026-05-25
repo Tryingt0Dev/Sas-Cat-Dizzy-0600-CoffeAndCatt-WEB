@@ -1,0 +1,53 @@
+export const FEATURE_KEYS = {
+  productsCreate: "products.create",
+  productsBulkImport: "products.bulkImport",
+  productsAdvancedInventory: "products.advancedInventory",
+  storesCreate: "stores.create",
+  usersInvite: "users.invite",
+  aiBasic: "ai.basic",
+  aiAdvanced: "ai.advanced",
+  analyticsBasic: "analytics.basic",
+  analyticsAdvanced: "analytics.advanced",
+  automationsUse: "automations.use",
+  reportsExport: "reports.export",
+  integrationsBasic: "integrations.basic",
+  integrationsAdvanced: "integrations.advanced",
+  catalogPaletteChange: "catalog.palette.change",
+  catalogTemplateChange: "catalog.template.change",
+  catalogBrandingChange: "catalog.branding.change",
+  saasThemeChange: "saas.theme.change",
+  storeSettingsBasic: "store.settings.basic",
+  customDomainUse: "customDomain.use",
+  supportPriority: "support.priority",
+  auditLogsView: "auditLogs.view",
+  teamAdvancedPermissions: "team.advancedPermissions",
+  quotesOrders: "quotes.orders"
+} as const;
+
+export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
+
+export const FEATURE_LABELS: Record<FeatureKey, string> = {
+  [FEATURE_KEYS.productsCreate]: "Crear productos",
+  [FEATURE_KEYS.productsBulkImport]: "Importacion masiva de productos",
+  [FEATURE_KEYS.productsAdvancedInventory]: "Inventario avanzado",
+  [FEATURE_KEYS.storesCreate]: "Crear tiendas",
+  [FEATURE_KEYS.usersInvite]: "Invitar usuarios",
+  [FEATURE_KEYS.aiBasic]: "IA basica",
+  [FEATURE_KEYS.aiAdvanced]: "IA avanzada",
+  [FEATURE_KEYS.analyticsBasic]: "Analytics basico",
+  [FEATURE_KEYS.analyticsAdvanced]: "Reportes avanzados",
+  [FEATURE_KEYS.automationsUse]: "Automatizaciones",
+  [FEATURE_KEYS.reportsExport]: "Exportacion de reportes",
+  [FEATURE_KEYS.integrationsBasic]: "Integraciones basicas",
+  [FEATURE_KEYS.integrationsAdvanced]: "Integraciones avanzadas",
+  [FEATURE_KEYS.catalogPaletteChange]: "Paletas de catalogo",
+  [FEATURE_KEYS.catalogTemplateChange]: "Plantillas de catalogo",
+  [FEATURE_KEYS.catalogBrandingChange]: "Branding visual",
+  [FEATURE_KEYS.saasThemeChange]: "Tema del SaaS",
+  [FEATURE_KEYS.storeSettingsBasic]: "Configuracion basica",
+  [FEATURE_KEYS.customDomainUse]: "Dominio personalizado",
+  [FEATURE_KEYS.supportPriority]: "Soporte prioritario",
+  [FEATURE_KEYS.auditLogsView]: "Auditoria",
+  [FEATURE_KEYS.teamAdvancedPermissions]: "Permisos avanzados de equipo",
+  [FEATURE_KEYS.quotesOrders]: "Cotizaciones y pedidos"
+};

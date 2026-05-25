@@ -114,6 +114,7 @@ export default async function StorePage({ params, searchParams }: StorePageProps
     businessType: business.businessType,
     address: business.address,
     catalogTemplate: business.catalogTemplate,
+    catalogPalette: business.catalogPalette,
     primaryColor: business.primaryColor,
     secondaryColor: business.secondaryColor,
     accentColor: business.accentColor,

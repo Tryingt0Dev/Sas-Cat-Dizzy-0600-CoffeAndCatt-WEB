@@ -31,20 +31,23 @@ export const CatalogTemplate = {
 export type CatalogTemplate = (typeof CatalogTemplate)[keyof typeof CatalogTemplate];
 
 export const PlanType = {
-  FREE: "FREE",
-  STARTER: "STARTER",
-  PRO: "PRO",
-  BUSINESS: "BUSINESS",
-  ENTERPRISE: "ENTERPRISE"
+  NORMAL: "normal",
+  PREMIUM: "premium",
+  BUSINESS: "business",
+  FREE: "normal",
+  STARTER: "premium",
+  PRO: "premium",
+  ENTERPRISE: "business"
 } as const;
 export type PlanType = (typeof PlanType)[keyof typeof PlanType];
 
 export const SubscriptionStatus = {
-  TRIALING: "TRIALING",
-  ACTIVE: "ACTIVE",
-  PAST_DUE: "PAST_DUE",
-  CANCELED: "CANCELED",
-  SUSPENDED: "SUSPENDED"
+  ACTIVE: "active",
+  TRIALING: "trialing",
+  PAST_DUE: "past_due",
+  CANCELED: "canceled",
+  EXPIRED: "expired",
+  SUSPENDED: "past_due"
 } as const;
 export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 

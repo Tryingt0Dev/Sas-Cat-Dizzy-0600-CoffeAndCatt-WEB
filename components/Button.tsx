@@ -10,9 +10,9 @@ export function Button({
     <button
       className={clsx(
         "rounded-2xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
-        variant === "primary" && "bg-black text-white hover:bg-gray-800",
-        variant === "secondary" && "border border-gray-200 bg-white text-gray-900 hover:bg-gray-50",
-        variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
+        variant === "primary" && "bg-[var(--app-primary)] text-[var(--app-button-text,white)] hover:bg-[var(--app-primary-hover)]",
+        variant === "secondary" && "border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] hover:bg-[var(--app-surface-muted)]",
+        variant === "danger" && "bg-[var(--app-danger)] text-white hover:brightness-90",
         className
       )}
       {...props}

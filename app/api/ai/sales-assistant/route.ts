@@ -288,7 +288,7 @@ export async function POST(req: Request) {
       const usedThisMonth = await prisma.conversation.count({
         where: { businessId: business.id, channel: "WEBCHAT", createdAt: { gte: monthStart } }
       });
-      if (usedThisMonth >= monthlyLimit) {
+      if (monthlyLimit >= 0 && usedThisMonth >= monthlyLimit) {
         return NextResponse.json({ ok: false, error: "Limite mensual de conversaciones IA alcanzado para este plan" }, { status: 402 });
       }
 

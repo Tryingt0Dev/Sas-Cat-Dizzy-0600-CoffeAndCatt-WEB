@@ -17,6 +17,7 @@ import { formatCLP, getFinalPrice } from "@/lib/format";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
 import { parseStringRecord } from "@/lib/safe-json";
 import { getAttributeLabels } from "@/lib/store-types";
+import { formatPlanLimit, getPlanEntitlements } from "@/lib/plans";
 
 type ProductSearchParams = {
   success?: string;
@@ -28,14 +29,14 @@ type ProductSearchParams = {
 
 export default async function ProductsPage({ searchParams }: { searchParams?: Promise<ProductSearchParams | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const { business } = await requireStoreAccess({ permission: "manage_products" });
+  const { business, plan } = await requireStoreAccess({ permission: "manage_products" });
   const q = String(resolvedSearchParams?.q ?? "").trim();
   const category = String(resolvedSearchParams?.category ?? "").trim();
   const status = String(resolvedSearchParams?.status ?? "").trim();
   const validStatus = enumValues(ProductStatus).includes(status as ProductStatusValue) ? status : undefined;
   const dynamicFields = getAttributeLabels(business.businessType);
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, productCount] = await Promise.all([
     prisma.product.findMany({
       where: {
         businessId: business.id,
@@ -55,8 +56,11 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
       include: { category: true },
       orderBy: { createdAt: "desc" }
     }),
-    prisma.category.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } })
+    prisma.category.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } }),
+    prisma.product.count({ where: { businessId: business.id } })
   ]);
+  const productLimit = getPlanEntitlements(plan.type).maxProducts;
+  const productLimitReached = productLimit !== "unlimited" && productCount >= productLimit;
 
   return (
     <div>
@@ -83,6 +87,19 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
         help="Los productos con stock bajo te llegarán al dashboard y puedes crear un producto activo para comenzar a vender." 
         actions={<LearningLink href="/dashboard/learning#productos">Ver guía</LearningLink>}
       />
+      {productLimitReached ? (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-black text-amber-950">Limite de productos alcanzado</h2>
+              <p className="mt-1 text-sm text-amber-800">
+                Tu plan actual permite hasta {formatPlanLimit(productLimit)} productos. Puedes editar productos existentes, pero para agregar mas necesitas un plan superior.
+              </p>
+            </div>
+            <a href="/settings/billing" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white">Ver planes</a>
+          </div>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Card>

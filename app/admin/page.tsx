@@ -10,6 +10,7 @@ import { parseJsonRecord } from "@/lib/safe-json";
 import { getStoreTypeOptions, getStoreTypeLabel } from "@/lib/store-types";
 import { GLOBAL_ADMIN_ROLES, requireAdminPanelUser } from "@/lib/auth";
 import { USER_GLOBAL_ROLE_OPTIONS, canManagePlatform } from "@/lib/auth/permissions";
+import { PLAN_SLUGS, formatPlanLimit } from "@/lib/plans";
 import { planDisplayName } from "@/services/plan-guard";
 import { toggleBusinessActiveAction, updateUserRoleAction } from "./actions";
 
@@ -117,6 +118,10 @@ function metricHelp(label: string, value: number, help: string) {
       <p className="mt-2 text-xs leading-5 text-gray-500">{help}</p>
     </Card>
   );
+}
+
+function formatDbLimit(value: number) {
+  return value < 0 ? "Ilimitado" : formatPlanLimit(value);
 }
 
 function issueCard({
@@ -301,7 +306,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
       orderBy: { createdAt: "desc" },
       take: 30
     }),
-    prisma.plan.findMany({ orderBy: { maxProducts: "asc" } }),
+    prisma.plan.findMany({ where: { type: { in: [...PLAN_SLUGS] } }, orderBy: { maxProducts: "asc" } }),
     prisma.product.count({ where: { OR: [{ imageUrl: null }, { imageUrl: "" }] } }),
     prisma.product.count({ where: { categoryId: null } }),
     prisma.product.count({ where: { price: { lte: 0 } } }),
@@ -719,13 +724,16 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
                 </tr>
               </thead>
               <tbody>
-                {plans.map((plan) => (
+                {PLAN_SLUGS
+                  .map((slug) => plans.find((plan) => plan.type === slug))
+                  .filter((plan): plan is (typeof plans)[number] => Boolean(plan))
+                  .map((plan) => (
                   <tr key={plan.id} className="border-b border-gray-100">
                     <td className="py-4 font-black">{plan.name}</td>
-                    <td>{plan.maxProducts}</td>
-                    <td>{plan.maxImages}</td>
-                    <td>{plan.maxAiConversationsMonthly}</td>
-                    <td>{plan.maxMembers}</td>
+                    <td>{formatDbLimit(plan.maxProducts)}</td>
+                    <td>{formatDbLimit(plan.maxImages)}</td>
+                    <td>{formatDbLimit(plan.maxAiConversationsMonthly)}</td>
+                    <td>{formatDbLimit(plan.maxMembers)}</td>
                     <td>{plan.advancedSeoEnabled ? "Si" : "No"}</td>
                     <td>{plan.analyticsEnabled ? "Si" : "No"}</td>
                     <td>{plan.supportLevel}</td>

@@ -61,31 +61,35 @@ async function main() {
     "PLATFORM_ADMIN must receive full effective plan limits"
   );
 
-  const freePlan = await prisma.plan.upsert({
-    where: { type: "FREE" },
+  const normalPlan = await prisma.plan.upsert({
+    where: { type: "normal" },
     update: {
-      name: "Free",
-      maxProducts: 25,
-      maxCategories: 5,
+      name: "Normal",
+      description: "Plan normal para pruebas de seguridad",
+      maxProducts: 50,
+      maxCategories: 20,
       maxAiConversationsMonthly: 100,
       maxUsers: 1,
+      maxMembers: 1,
       maxStores: 1,
-      maxTemplates: 1,
-      advancedBranding: false,
-      quotesAndOrders: false,
+      maxTemplates: 4,
+      advancedBranding: true,
+      quotesAndOrders: true,
       customDomain: false
     },
     create: {
-      type: "FREE",
-      name: "Free",
-      maxProducts: 25,
-      maxCategories: 5,
+      type: "normal",
+      name: "Normal",
+      description: "Plan normal para pruebas de seguridad",
+      maxProducts: 50,
+      maxCategories: 20,
       maxAiConversationsMonthly: 100,
       maxUsers: 1,
+      maxMembers: 1,
       maxStores: 1,
-      maxTemplates: 1,
-      advancedBranding: false,
-      quotesAndOrders: false,
+      maxTemplates: 4,
+      advancedBranding: true,
+      quotesAndOrders: true,
       customDomain: false
     }
   });
@@ -108,8 +112,8 @@ async function main() {
   const businessA = await prisma.business.create({
     data: {
       ownerId: userA.id,
-      planId: freePlan.id,
-      planType: "FREE",
+      planId: normalPlan.id,
+      planType: "normal",
       name: `${runId} A`,
       slug: `${runId}-a`,
       publicSlug: `${runId}-a`,
@@ -121,8 +125,8 @@ async function main() {
   const businessB = await prisma.business.create({
     data: {
       ownerId: userB.id,
-      planId: freePlan.id,
-      planType: "FREE",
+      planId: normalPlan.id,
+      planType: "normal",
       name: `${runId} B`,
       slug: `${runId}-b`,
       publicSlug: `${runId}-b`,
@@ -244,8 +248,8 @@ async function main() {
     await prisma.business.create({
       data: {
         ownerId: userB.id,
-        planId: freePlan.id,
-        planType: "FREE",
+        planId: normalPlan.id,
+        planType: "normal",
         name: "Duplicate slug",
         slug: `${runId}-duplicate`,
         publicSlug: businessA.publicSlug

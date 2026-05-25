@@ -139,11 +139,11 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-black">Diseño del catálogo</h2>
-                  <HelpTooltip description="Elige el diseño que mejor muestre tus productos. Algunos modelos pueden estar disponibles solo en planes superiores." />
+                  <HelpTooltip description="Elige el diseño que mejor muestre tus productos. La seleccion visual queda disponible para todos los planes." />
                 </div>
                 <p className="mt-1 text-sm text-gray-500">Plan activo: <span className="font-black text-gray-900">{currentPlanName}</span></p>
               </div>
-              {effectivePlan.advancedBranding && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Branding avanzado</span>}
+              {effectivePlan.advancedBranding && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Diseño incluido</span>}
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {catalogTemplateOptions.map((template) => (

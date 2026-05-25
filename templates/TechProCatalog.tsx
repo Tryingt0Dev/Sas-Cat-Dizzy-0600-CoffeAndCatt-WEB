@@ -12,12 +12,12 @@ export function TechProCatalog({ business, categories, products, featuredProduct
   return (
     <main className="min-h-screen bg-[var(--catalog-bg)]" style={themeStyle}>
       <CatalogHeader business={business} productCount={products.length} categoryCount={categories.length} />
-      <section className="bg-white">
+      <section className="bg-[var(--catalog-surface)]">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_460px] lg:items-center">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.25em] text-[var(--catalog-accent)]">Asesoria tecnica</p>
             <h1 className="mt-3 text-5xl font-black leading-tight md:text-6xl">{business.name}</h1>
-            <p className="mt-4 max-w-2xl text-lg text-gray-600">{business.description}</p>
+            <p className="mt-4 max-w-2xl text-lg text-[var(--catalog-text-muted)]">{business.description}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[var(--catalog-radius)] bg-[var(--catalog-secondary)] p-4">
                 <p className="text-xs font-black uppercase text-gray-500">Categorias</p>

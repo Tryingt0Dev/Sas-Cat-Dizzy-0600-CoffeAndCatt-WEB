@@ -7,14 +7,19 @@ import { slugify } from "@/lib/format";
 import { requiredString } from "@/lib/validation";
 import { requireStoreAccess } from "@/services/authorization";
 import { writeAuditLog } from "@/services/audit-log";
+import { assertWithinPlanLimit, PlanAccessError } from "@/services/plan-guard";
 
 export async function createCategoryAction(formData: FormData) {
-  const { business, plan } = await requireStoreAccess({ permission: "manage_categories" });
+  const { business } = await requireStoreAccess({ permission: "manage_categories" });
   const parsedName = requiredString.max(80).safeParse(formData.get("name"));
   if (!parsedName.success) redirect("/dashboard/categories?error=Nombre obligatorio");
   const name = parsedName.data;
-  const categoryCount = await prisma.category.count({ where: { businessId: business.id } });
-  if (categoryCount >= (plan.maxCategories ?? 5)) redirect("/dashboard/categories?error=Límite de categorías alcanzado para tu plan");
+  try {
+    await assertWithinPlanLimit(business.id, "categories");
+  } catch (error) {
+    if (error instanceof PlanAccessError) redirect(`/dashboard/categories?error=${error.message}`);
+    throw error;
+  }
 
   const baseSlug = slugify(name) || "categoria";
   let slug = baseSlug;

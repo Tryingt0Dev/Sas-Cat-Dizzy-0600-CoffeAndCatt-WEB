@@ -16,12 +16,12 @@ export function BoutiquePremiumCatalog({ business, categories, products, feature
         <div className="py-8">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--catalog-accent)]">{business.businessType ?? "Boutique"}</p>
           <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-tight md:text-7xl">{business.name}</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-gray-600">{business.description}</p>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--catalog-text-muted)]">{business.description}</p>
         </div>
         <SafeImage src={heroImage} fallback={defaultProductImage} alt={business.name} className="aspect-[4/3] w-full rounded-[var(--catalog-radius)] object-cover shadow-sm" />
       </section>
 
-      <section className="border-y border-black/10 bg-white">
+      <section className="border-y border-[var(--catalog-border)] bg-[var(--catalog-surface)]">
         <div className="mx-auto max-w-7xl px-6 py-5">
           <CatalogControls categories={categories} searchState={searchState} compact />
         </div>

@@ -10,8 +10,9 @@ import { parseJsonRecord } from "@/lib/safe-json";
 import { getStoreTypeLabel } from "@/lib/store-types";
 import { requireAdminPanelUser } from "@/lib/auth";
 import { STORE_ROLE_OPTIONS, canManagePlatform } from "@/lib/auth/permissions";
+import { formatPlanLimit, getPlanEntitlements, normalizePlanSlug, planList, SUBSCRIPTION_STATUSES } from "@/lib/plans";
 import { planDisplayName } from "@/services/plan-guard";
-import { addStoreMemberAction, removeStoreMemberAction, toggleBusinessActiveAction, updateStoreMemberRoleAction } from "../../actions";
+import { addStoreMemberAction, removeStoreMemberAction, toggleBusinessActiveAction, updateStoreMemberRoleAction, updateStorePlanAction } from "../../actions";
 
 type StoreDetailProps = {
   params: Promise<{ id: string }>;
@@ -82,6 +83,18 @@ function storeRoleLabel(role: string) {
   return storeRoleLabels[role] ?? role.replace("STORE_", "").toLowerCase();
 }
 
+const subscriptionStatusLabels: Record<string, string> = {
+  active: "Activa",
+  trialing: "Trial",
+  past_due: "Pago pendiente",
+  canceled: "Cancelada",
+  expired: "Expirada"
+};
+
+function subscriptionStatusLabel(status: string | null | undefined) {
+  return subscriptionStatusLabels[status ?? ""] ?? "Sin suscripcion";
+}
+
 export default async function AdminStoreDetailPage({ params, searchParams }: StoreDetailProps) {
   const currentUser = await requireAdminPanelUser();
   const canManage = canManagePlatform(currentUser);
@@ -133,7 +146,8 @@ export default async function AdminStoreDetailPage({ params, searchParams }: Sto
     categories,
     recentProducts,
     recentAuditLogs,
-    attributeProducts
+    attributeProducts,
+    ownerStoreCount
   ] = await Promise.all([
     prisma.product.count({ where: { businessId: business.id, status: ProductStatus.ACTIVE } }),
     prisma.product.count({ where: { businessId: business.id, status: ProductStatus.DRAFT } }),
@@ -163,10 +177,14 @@ export default async function AdminStoreDetailPage({ params, searchParams }: Sto
       where: { businessId: business.id, attributesJson: { not: null } },
       select: { id: true, name: true, attributesJson: true },
       take: 500
-    })
+    }),
+    prisma.business.count({ where: { ownerId: business.ownerId } })
   ]);
 
   const invalidAttributeProducts = attributeProducts.filter((product) => !parseJsonRecord(product.attributesJson));
+  const currentPlanSlug = normalizePlanSlug(business.subscription?.plan.type ?? business.plan?.type ?? business.planType);
+  const currentEntitlements = getPlanEntitlements(currentPlanSlug);
+  const subscriptionStatus = business.subscription?.status ?? "active";
   const configurationChecks = [
     {
       label: "Tipo de negocio",
@@ -407,7 +425,7 @@ export default async function AdminStoreDetailPage({ params, searchParams }: Sto
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl bg-gray-50 p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Estado</p>
-            <p className="mt-1 font-black">{business.subscription?.status ?? "Sin suscripcion"}</p>
+            <p className="mt-1 font-black">{subscriptionStatusLabel(subscriptionStatus)}</p>
           </div>
           <div className="rounded-2xl bg-gray-50 p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Plan</p>
@@ -422,6 +440,40 @@ export default async function AdminStoreDetailPage({ params, searchParams }: Sto
             <p className="mt-1 font-black">{business.subscription?.cancelAtPeriodEnd ? "Al final del periodo" : "No programada"}</p>
           </div>
         </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-gray-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Uso productos</p>
+            <p className="mt-1 font-black">{business._count.products} / {formatPlanLimit(currentEntitlements.maxProducts)}</p>
+          </div>
+          <div className="rounded-2xl bg-gray-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Usuarios tienda</p>
+            <p className="mt-1 font-black">{business._count.memberships} / {formatPlanLimit(currentEntitlements.maxUsersPerStore)}</p>
+          </div>
+          <div className="rounded-2xl bg-gray-50 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Tiendas owner</p>
+            <p className="mt-1 font-black">{ownerStoreCount} / {formatPlanLimit(currentEntitlements.maxStores)}</p>
+          </div>
+        </div>
+        {canManage ? (
+          <form action={updateStorePlanAction} className="mt-5 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <input type="hidden" name="businessId" value={business.id} />
+            <label className="block text-sm font-semibold text-gray-900">
+              Plan comercial
+              <select name="plan" defaultValue={currentPlanSlug} className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm">
+                {planList.map((plan) => <option key={plan.slug} value={plan.slug}>{plan.name}</option>)}
+              </select>
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Estado suscripcion
+              <select name="status" defaultValue={subscriptionStatus} className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm">
+                {SUBSCRIPTION_STATUSES.map((status) => <option key={status} value={status}>{subscriptionStatusLabel(status)}</option>)}
+              </select>
+            </label>
+            <ConfirmSubmitButton message={`Cambiar plan de ${business.name}?`} className="rounded-2xl bg-black px-4 py-3 text-sm font-black text-white">
+              Guardar plan
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
       </Card>
 
       <Card>

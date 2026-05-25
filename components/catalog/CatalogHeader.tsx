@@ -15,7 +15,7 @@ export function CatalogHeader({
   const initials = business.name.slice(0, 2).toUpperCase();
 
   return (
-    <header className="border-b border-black/10 bg-white/95 backdrop-blur">
+    <header className="border-b border-[var(--catalog-border)] bg-[var(--catalog-surface)] backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
         <Link href={`/store/${business.publicSlug}`} className="flex min-w-0 items-center gap-3">
           {business.logoUrl ? (
@@ -28,9 +28,9 @@ export function CatalogHeader({
           <span className="min-w-0">
             <span className="block truncate text-lg font-black text-[var(--catalog-text)]">{business.name}</span>
             {business.welcomeMessage ? (
-              <span className="block truncate text-sm text-gray-500">{business.welcomeMessage}</span>
+              <span className="block truncate text-sm text-[var(--catalog-text-muted)]">{business.welcomeMessage}</span>
             ) : (
-              <span className="block truncate text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+              <span className="block truncate text-xs font-bold uppercase tracking-[0.18em] text-[var(--catalog-text-muted)]">
                 {business.businessType || business.address || "Catalogo oficial"}
               </span>
             )}
@@ -44,7 +44,7 @@ export function CatalogHeader({
             </span>
           )}
           {typeof categoryCount === "number" && (
-            <span className="rounded-full border border-black/10 bg-white px-3 py-2 text-gray-700">
+            <span className="rounded-full border border-[var(--catalog-border)] bg-[var(--catalog-surface)] px-3 py-2 text-[var(--catalog-text)]">
               {categoryCount} categorias
             </span>
           )}

@@ -126,7 +126,7 @@ export async function registerAction(formData: FormData) {
             subscription: {
               create: {
                 planId: defaultPlan.id,
-                status: "TRIALING"
+                status: "active"
               }
             },
             aiSettings: {

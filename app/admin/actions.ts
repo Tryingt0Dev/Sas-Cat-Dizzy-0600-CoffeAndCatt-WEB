@@ -7,12 +7,19 @@ import { prisma } from "@/lib/db";
 import { GLOBAL_ADMIN_ROLES, requirePlatformAdmin } from "@/lib/auth";
 import { UserRole } from "@/lib/enums";
 import { STORE_ROLE_OPTIONS, USER_GLOBAL_ROLE_OPTIONS, canAssignGlobalRole, isSuperAdmin, normalizeStoreRole } from "@/lib/auth/permissions";
+import { getPlanByType, normalizePlanSlug, normalizeSubscriptionStatus, PLAN_SLUGS, SUBSCRIPTION_STATUSES } from "@/lib/plans";
 import { PlanAccessError, canInviteMember } from "@/services/plan-guard";
 import { writeAuditLog } from "@/services/audit-log";
 
 const businessStatusSchema = z.object({
   id: z.string().trim().min(1),
   isActive: z.enum(["true", "false"]).transform((value) => value === "true")
+});
+
+const planOverrideSchema = z.object({
+  businessId: z.string().trim().min(1),
+  plan: z.enum(PLAN_SLUGS as unknown as [string, ...string[]]),
+  status: z.enum(SUBSCRIPTION_STATUSES as unknown as [string, ...string[]])
 });
 
 const assignableUserRoleSchema = z.enum(USER_GLOBAL_ROLE_OPTIONS);
@@ -74,6 +81,90 @@ export async function toggleBusinessActiveAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath(`/admin/stores/${id}`);
   adminRedirect("/admin", "Tienda actualizada");
+}
+
+export async function updateStorePlanAction(formData: FormData) {
+  const actor = await requirePlatformAdmin();
+  const parsed = planOverrideSchema.safeParse({
+    businessId: formData.get("businessId"),
+    plan: formData.get("plan"),
+    status: formData.get("status")
+  });
+  if (!parsed.success) adminRedirect("/admin", "Plan o estado invalido", "error");
+
+  const business = await prisma.business.findUnique({
+    where: { id: parsed.data.businessId },
+    include: { plan: true, subscription: { include: { plan: true } } }
+  });
+  if (!business) adminRedirect("/admin", "Tienda no encontrada", "error");
+
+  const nextPlan = await getPlanByType(parsed.data.plan);
+  const oldPlan = normalizePlanSlug(business.subscription?.plan.type ?? business.plan?.type ?? business.planType);
+  const oldStatus = normalizeSubscriptionStatus(business.subscription?.status);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.business.update({
+      where: { id: business.id },
+      data: {
+        planId: nextPlan.id,
+        planType: parsed.data.plan
+      }
+    });
+
+    await tx.subscription.upsert({
+      where: { businessId: business.id },
+      update: {
+        planId: nextPlan.id,
+        status: parsed.data.status
+      },
+      create: {
+        businessId: business.id,
+        planId: nextPlan.id,
+        status: parsed.data.status
+      }
+    });
+  });
+
+  await writeAuditLog({
+    userId: actor.id,
+    businessId: business.id,
+    action: "manual_plan_override",
+    resourceType: "Subscription",
+    resourceId: business.subscription?.id ?? business.id,
+    metadata: {
+      actorId: actor.id,
+      oldPlan,
+      newPlan: parsed.data.plan,
+      oldStatus,
+      newStatus: parsed.data.status
+    }
+  });
+
+  if (oldPlan !== parsed.data.plan) {
+    await writeAuditLog({
+      userId: actor.id,
+      businessId: business.id,
+      action: "plan.changed",
+      resourceType: "Business",
+      resourceId: business.id,
+      metadata: { actorId: actor.id, oldPlan, newPlan: parsed.data.plan }
+    });
+  }
+
+  if (oldStatus !== parsed.data.status) {
+    await writeAuditLog({
+      userId: actor.id,
+      businessId: business.id,
+      action: "subscription.status_changed",
+      resourceType: "Subscription",
+      resourceId: business.subscription?.id ?? business.id,
+      metadata: { actorId: actor.id, oldStatus, newStatus: parsed.data.status }
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/stores/${business.id}`);
+  adminRedirect(`/admin/stores/${business.id}`, "Plan actualizado manualmente");
 }
 
 export async function updateUserRoleAction(formData: FormData) {

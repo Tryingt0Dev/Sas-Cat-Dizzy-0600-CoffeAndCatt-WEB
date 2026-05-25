@@ -1,11 +1,23 @@
 import { prisma } from "@/lib/db";
 import { hasFullPlanAccess } from "@/lib/auth";
 import { CatalogTemplate } from "@/lib/enums";
-import { planDefinitions } from "@/lib/plans";
+import {
+  FEATURE_KEYS,
+  canUseFeature as planCanUseFeature,
+  getLimit,
+  limitToNumber,
+  normalizePlanSlug,
+  planDefinitions,
+  type FeatureKey,
+  type PlanLimitKey
+} from "@/lib/plans";
+import { writeAuditLog } from "@/services/audit-log";
 
 type PlanLimits = {
+  id?: string;
   type?: string;
   name?: string;
+  description?: string;
   maxTemplates: number;
   maxProducts?: number;
   maxImages?: number;
@@ -61,6 +73,7 @@ const DEFAULT_BRANDING = {
 export const platformFullAccessPlan: PlanLimits = {
   type: "PLATFORM_FULL_ACCESS",
   name: "Acceso total",
+  description: "Acceso interno de plataforma para soporte y administracion.",
   maxProducts: 999999,
   maxImages: 999999,
   maxCategories: 999999,
@@ -87,12 +100,21 @@ export class PlanAccessError extends Error {
 }
 
 function fallbackPlan(): PlanLimits {
-  return planDefinitions.FREE;
+  return planDefinitions.normal;
+}
+
+function canonicalPlan(plan: PlanLimits | null | undefined): PlanLimits {
+  const slug = normalizePlanSlug(plan?.type);
+  return {
+    ...planDefinitions[slug],
+    id: plan?.id,
+    type: slug
+  };
 }
 
 export function effectivePlanLimits(plan: PlanLimits | null | undefined, user?: PlanIdentity | null) {
   if (hasFullPlanAccess(user)) return platformFullAccessPlan;
-  return plan ?? fallbackPlan();
+  return plan ? canonicalPlan(plan) : fallbackPlan();
 }
 
 export function planDisplayName(plan: PlanLimits | null | undefined, user?: PlanIdentity | null) {
@@ -100,7 +122,9 @@ export function planDisplayName(plan: PlanLimits | null | undefined, user?: Plan
 }
 
 export function allowedTemplatesForPlan(plan: PlanLimits | null | undefined) {
-  const maxTemplates = Math.max(1, plan?.maxTemplates ?? fallbackPlan().maxTemplates);
+  const effectivePlan = effectivePlanLimits(plan);
+  if (!planCanUseFeature(effectivePlan.type, FEATURE_KEYS.catalogTemplateChange)) return [];
+  const maxTemplates = Math.max(1, effectivePlan.maxTemplates ?? fallbackPlan().maxTemplates);
   return TEMPLATE_ACCESS_ORDER.slice(0, maxTemplates);
 }
 
@@ -142,7 +166,8 @@ export function assertAdvancedBrandingAllowed(
   settings: BrandingSettings,
   currentSettings?: BrandingSettings | null
 ) {
-  if (plan?.advancedBranding ?? fallbackPlan().advancedBranding) return;
+  const effectivePlan = effectivePlanLimits(plan);
+  if (planCanUseFeature(effectivePlan.type, FEATURE_KEYS.catalogBrandingChange)) return;
   if (brandingChanged(currentSettings, settings) && usesAdvancedBranding(settings)) {
     throw new PlanAccessError("Tu plan actual no incluye branding avanzado");
   }
@@ -151,10 +176,11 @@ export function assertAdvancedBrandingAllowed(
 export async function getPlanLimitsForBusiness(businessId: string) {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    include: { plan: true, owner: true }
+    include: { plan: true, subscription: { include: { plan: true } }, owner: true }
   });
 
-  return effectivePlanLimits(business?.plan, business?.owner);
+  const plan = business?.subscription?.plan ?? business?.plan ?? (business ? { ...fallbackPlan(), type: business.planType } : null);
+  return effectivePlanLimits(plan, business?.owner);
 }
 
 export async function getStorePlan(businessId: string) {
@@ -162,6 +188,7 @@ export async function getStorePlan(businessId: string) {
 }
 
 export type PlanFeature =
+  | FeatureKey
   | "ai"
   | "advancedBranding"
   | "advancedSeo"
@@ -171,21 +198,33 @@ export type PlanFeature =
   | "quotesAndOrders"
   | "customDomain";
 
+function legacyFeatureToKey(feature: PlanFeature): FeatureKey {
+  if (feature === "ai") return FEATURE_KEYS.aiBasic;
+  if (feature === "advancedBranding") return FEATURE_KEYS.catalogBrandingChange;
+  if (feature === "advancedSeo") return FEATURE_KEYS.analyticsAdvanced;
+  if (feature === "analytics") return FEATURE_KEYS.analyticsBasic;
+  if (feature === "pageBuilder") return FEATURE_KEYS.catalogTemplateChange;
+  if (feature === "advancedAttributes") return FEATURE_KEYS.productsAdvancedInventory;
+  if (feature === "quotesAndOrders") return FEATURE_KEYS.quotesOrders;
+  if (feature === "customDomain") return FEATURE_KEYS.customDomainUse;
+  return feature;
+}
+
 function featureEnabled(plan: PlanLimits, feature: PlanFeature) {
-  if (feature === "ai") return plan.aiEnabled !== false;
-  if (feature === "advancedBranding") return plan.advancedBranding;
-  if (feature === "advancedSeo") return plan.advancedSeoEnabled === true;
-  if (feature === "analytics") return plan.analyticsEnabled === true;
-  if (feature === "pageBuilder") return plan.pageBuilderEnabled === true;
-  if (feature === "advancedAttributes") return plan.advancedAttributesEnabled === true;
-  if (feature === "quotesAndOrders") return plan.quotesAndOrders;
-  if (feature === "customDomain") return plan.customDomain === true;
-  return false;
+  if (plan.type === platformFullAccessPlan.type) return true;
+  return planCanUseFeature(plan.type, legacyFeatureToKey(feature));
 }
 
 export async function requireFeature(businessId: string, feature: PlanFeature) {
   const plan = await getPlanLimitsForBusiness(businessId);
   if (!featureEnabled(plan, feature)) {
+    await writeAuditLog({
+      businessId,
+      action: "feature.blocked_by_plan",
+      resourceType: "PlanFeature",
+      resourceId: legacyFeatureToKey(feature),
+      metadata: { plan: plan.type, feature: legacyFeatureToKey(feature) }
+    }).catch(() => undefined);
     throw new PlanAccessError("Tu plan actual no incluye esta funcion");
   }
   return plan;
@@ -193,19 +232,37 @@ export async function requireFeature(businessId: string, feature: PlanFeature) {
 
 export type PlanLimitType = "products" | "categories" | "members" | "images" | "stores";
 
+function limitTypeToKey(limitType: PlanLimitType): PlanLimitKey {
+  if (limitType === "products") return "maxProducts";
+  if (limitType === "categories") return "maxCategories";
+  if (limitType === "members") return "maxUsersPerStore";
+  if (limitType === "images") return "maxImages";
+  return "maxStores";
+}
+
+function limitLabel(limitType: PlanLimitType) {
+  if (limitType === "products") return "productos";
+  if (limitType === "categories") return "categorias";
+  if (limitType === "members") return "usuarios";
+  if (limitType === "images") return "imagenes";
+  return "tiendas";
+}
+
+function limitErrorMessage(limitType: PlanLimitType, limit: number) {
+  if (limitType === "products") {
+    return `Tu plan actual permite hasta ${limit} productos. Para agregar mas productos, cambia a un plan superior.`;
+  }
+  if (limitType === "members") {
+    return `Tu plan actual permite hasta ${limit} usuario${limit === 1 ? "" : "s"} por tienda. Para invitar mas usuarios, cambia a un plan superior.`;
+  }
+  return `No puedes agregar mas ${limitLabel(limitType)}: tu plan actual permite hasta ${limit}.`;
+}
+
 export async function assertWithinPlanLimit(businessId: string, limitType: PlanLimitType, currentCount?: number) {
   const plan = await getPlanLimitsForBusiness(businessId);
-  const limit =
-    limitType === "products"
-      ? plan.maxProducts
-      : limitType === "categories"
-        ? plan.maxCategories
-        : limitType === "members"
-          ? plan.maxMembers ?? plan.maxUsers
-          : limitType === "images"
-            ? plan.maxImages
-            : plan.maxStores;
-  if (!limit || limit < 0) return plan;
+  if (plan.type === platformFullAccessPlan.type) return plan;
+  const limit = limitToNumber(getLimit(plan.type, limitTypeToKey(limitType)));
+  if (!Number.isFinite(limit) || limit < 0) return plan;
 
   let count = currentCount;
   if (typeof count !== "number") {
@@ -215,17 +272,14 @@ export async function assertWithinPlanLimit(businessId: string, limitType: PlanL
   }
 
   if ((count ?? 0) >= limit) {
-    const label =
-      limitType === "products"
-        ? "productos"
-        : limitType === "categories"
-          ? "categorias"
-          : limitType === "members"
-            ? "miembros"
-            : limitType === "images"
-              ? "imagenes"
-              : "tiendas";
-    throw new PlanAccessError(`No puedes agregar mas ${label}: tu plan actual permite hasta ${limit}`);
+    await writeAuditLog({
+      businessId,
+      action: "limit.reached",
+      resourceType: "PlanLimit",
+      resourceId: limitTypeToKey(limitType),
+      metadata: { plan: plan.type, limitType, limit, currentCount: count ?? 0 }
+    }).catch(() => undefined);
+    throw new PlanAccessError(limitErrorMessage(limitType, limit));
   }
   return plan;
 }
@@ -241,7 +295,7 @@ export async function canUploadImage(businessId: string, currentImageCount?: num
 }
 
 export async function canUseAI(businessId: string) {
-  await requireFeature(businessId, "ai");
+  await requireFeature(businessId, FEATURE_KEYS.aiBasic);
   return true;
 }
 
@@ -251,5 +305,5 @@ export async function canInviteMember(businessId: string) {
 }
 
 export async function assertQuotesAndOrdersAllowed(businessId: string) {
-  await requireFeature(businessId, "quotesAndOrders");
+  await requireFeature(businessId, FEATURE_KEYS.quotesOrders);
 }

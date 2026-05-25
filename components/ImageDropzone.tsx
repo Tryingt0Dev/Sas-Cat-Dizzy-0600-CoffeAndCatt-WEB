@@ -79,27 +79,27 @@ export function ImageDropzone({
         onDrop={handleDrop}
         className={
           dragging
-            ? "rounded-2xl border-2 border-dashed border-black bg-gray-50 p-4"
-            : "rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4"
+            ? "rounded-2xl border-2 border-dashed border-[var(--app-primary)] bg-[var(--app-surface-muted)] p-4"
+            : "rounded-2xl border-2 border-dashed border-[var(--app-border)] bg-[var(--app-surface)] p-4"
         }
       >
         <div className="grid gap-4 sm:grid-cols-[112px_1fr] sm:items-center">
-          <div className="h-28 w-full overflow-hidden rounded-2xl bg-gray-100 sm:w-28">
+          <div className="h-28 w-full overflow-hidden rounded-2xl bg-[var(--app-surface-muted)] sm:w-28">
             {url ? (
               <img src={url} alt={label} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-bold text-gray-400">Sin imagen</div>
+              <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-bold text-[var(--app-text-muted)]">Sin imagen</div>
             )}
           </div>
           <div>
-            <p className="text-sm font-black text-gray-900">{label}</p>
-            <p className="mt-1 text-xs text-gray-500">Arrastra una imagen o selecciona desde tu computador. JPG, PNG o WEBP hasta {maxSizeMb}MB.</p>
+            <p className="text-sm font-black text-[var(--app-text)]">{label}</p>
+            <p className="mt-1 text-xs text-[var(--app-text-muted)]">Arrastra una imagen o selecciona desde tu computador. JPG, PNG o WEBP hasta {maxSizeMb}MB.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => inputRef.current?.click()}
-                className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl bg-[var(--app-primary)] px-4 py-2 text-sm font-bold text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Subiendo imagen..." : "Seleccionar imagen"}
               </button>
@@ -111,7 +111,7 @@ export function ImageDropzone({
                     setMessage("Imagen eliminada del formulario");
                     setError(null);
                   }}
-                  className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700"
+                  className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2 text-sm font-bold text-[var(--app-text)]"
                 >
                   Borrar imagen
                 </button>
@@ -140,10 +140,10 @@ export function ImageDropzone({
           setError(nextUrl.toLowerCase().split("?")[0].endsWith(".svg") ? "SVG no esta permitido por seguridad." : null);
         }}
         placeholder="O pega una URL de imagen"
-        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-black focus:ring-2 focus:ring-black/10"
+        className="w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm shadow-sm focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)]"
       />
-      {message && <p className="text-sm font-semibold text-emerald-700">{message}</p>}
-      {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+      {message && <p className="text-sm font-semibold text-[var(--app-success)]">{message}</p>}
+      {error && <p className="text-sm font-semibold text-[var(--app-danger)]">{error}</p>}
     </div>
   );
 }

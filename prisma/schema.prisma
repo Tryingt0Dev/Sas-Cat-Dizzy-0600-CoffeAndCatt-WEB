@@ -12,19 +12,21 @@ datasource db {
 // When migrating to PostgreSQL/Supabase, these String fields can be converted to native Prisma enums.
 
 model User {
-  id                      String                   @id @default(cuid())
-  email                   String                   @unique
-  name                    String
-  passwordHash            String
-  role                    String                   @default("USER")
-  emailVerifiedAt         DateTime?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  sessions                Session[]
-  businesses              Business[]
-  memberships             Membership[]
-  auditLogs               AuditLog[]
-  emailVerificationTokens EmailVerificationToken[]
+  id                       String                   @id @default(cuid())
+  email                    String                   @unique
+  name                     String
+  passwordHash             String
+  role                     String                   @default("USER")
+  saasTheme                String                   @default("violet-premium")
+  themeOnboardingCompleted Boolean                  @default(false)
+  emailVerifiedAt          DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  sessions                 Session[]
+  businesses               Business[]
+  memberships              Membership[]
+  auditLogs                AuditLog[]
+  emailVerificationTokens  EmailVerificationToken[]
 }
 
 model Session {
@@ -50,52 +52,53 @@ model EmailVerificationToken {
 }
 
 model Business {
-  id                String         @id @default(cuid())
-  ownerId           String
-  owner             User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  planId            String?
-  plan              Plan?          @relation(fields: [planId], references: [id], onDelete: SetNull)
-  planType          String         @default("FREE")
-  name              String
-  dashboardTitle    String?
-  dashboardSubtitle String?
-  slug              String         @unique
-  publicSlug        String         @unique
-  description       String?
-  logoUrl           String?
-  bannerUrl         String?
-  catalogTemplate   String         @default("MODERN_GRID")
-  primaryColor      String         @default("#111827")
-  secondaryColor    String         @default("#F9FAFB")
-  accentColor       String         @default("#E11D48")
-  backgroundColor   String         @default("#F8FAFC")
-  textColor         String         @default("#111827")
-  buttonRadius      Int            @default(18)
-  whatsappNumber    String?
-  instagramUrl      String?
-  businessType      String?
-  address           String?
-  welcomeMessage    String?
-  seoTitle          String?
-  seoDescription    String?
-  seoKeywords       String?
-  showFeaturedCategories Boolean @default(true)
-  showFeaturedProducts Boolean @default(true)
-  currency          String         @default("CLP")
-  isActive          Boolean        @default(true)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  categories        Category[]
-  products          Product[]
-  customers         Customer[]
-  conversations     Conversation[]
-  quotes            Quote[]
-  orders            Order[]
-  aiSettings        AiSettings?
-  subscription      Subscription?
-  memberships       Membership[]
-  slugHistory       BusinessSlugHistory[]
-  auditLogs         AuditLog[]
+  id                     String                @id @default(cuid())
+  ownerId                String
+  owner                  User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  planId                 String?
+  plan                   Plan?                 @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planType               String                @default("normal")
+  name                   String
+  dashboardTitle         String?
+  dashboardSubtitle      String?
+  slug                   String                @unique
+  publicSlug             String                @unique
+  description            String?
+  logoUrl                String?
+  bannerUrl              String?
+  catalogTemplate        String                @default("MODERN_GRID")
+  primaryColor           String                @default("#111827")
+  secondaryColor         String                @default("#F9FAFB")
+  accentColor            String                @default("#E11D48")
+  backgroundColor        String                @default("#F8FAFC")
+  textColor              String                @default("#111827")
+  catalogPalette         String                @default("minimal-arena")
+  buttonRadius           Int                   @default(18)
+  whatsappNumber         String?
+  instagramUrl           String?
+  businessType           String?
+  address                String?
+  welcomeMessage         String?
+  seoTitle               String?
+  seoDescription         String?
+  seoKeywords            String?
+  showFeaturedCategories Boolean               @default(true)
+  showFeaturedProducts   Boolean               @default(true)
+  currency               String                @default("CLP")
+  isActive               Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  categories             Category[]
+  products               Product[]
+  customers              Customer[]
+  conversations          Conversation[]
+  quotes                 Quote[]
+  orders                 Order[]
+  aiSettings             AiSettings?
+  subscription           Subscription?
+  memberships            Membership[]
+  slugHistory            BusinessSlugHistory[]
+  auditLogs              AuditLog[]
 
   @@index([ownerId])
   @@index([planId])
@@ -151,6 +154,7 @@ model Plan {
   id                        String         @id @default(cuid())
   type                      String         @unique
   name                      String
+  description               String         @default("")
   maxProducts               Int
   maxImages                 Int            @default(100)
   maxCategories             Int            @default(10)
@@ -180,7 +184,7 @@ model Subscription {
   business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   planId                 String
   plan                   Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
-  status                 String    @default("TRIALING")
+  status                 String    @default("active")
   currentPeriodStart     DateTime  @default(now())
   currentPeriodEnd       DateTime?
   cancelAtPeriodEnd      Boolean   @default(false)

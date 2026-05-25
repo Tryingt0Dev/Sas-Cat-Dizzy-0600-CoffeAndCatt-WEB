@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBillingProvider, isBillingProviderConfigured } from "@/lib/billing";
+import { PLAN_SLUGS } from "@/lib/plans";
 import { requestHasAllowedOrigin } from "@/lib/request-security";
 import { assertRateLimit, getClientIp, rateLimitKey, RateLimitError } from "@/lib/rate-limit";
 import { AuthenticationError, AuthorizationError, getStoreAccess } from "@/services/authorization";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
 
 const checkoutSchema = z.object({
   businessId: z.string().trim().min(1),
-  planType: z.string().trim().min(1).max(40)
+  planType: z.enum(PLAN_SLUGS as unknown as [string, ...string[]])
 });
 
 function accessErrorResponse(error: unknown) {

@@ -28,30 +28,34 @@ async function cleanup() {
 
 async function ensureFreePlan() {
   return prisma.plan.upsert({
-    where: { type: "FREE" },
+    where: { type: "normal" },
     update: {
-      name: "Free",
-      maxProducts: 25,
-      maxCategories: 5,
+      name: "Normal",
+      description: "Plan normal para auditoria multi-tenant",
+      maxProducts: 50,
+      maxCategories: 20,
       maxAiConversationsMonthly: 100,
       maxUsers: 1,
+      maxMembers: 1,
       maxStores: 1,
-      maxTemplates: 1,
-      advancedBranding: false,
-      quotesAndOrders: false,
+      maxTemplates: 4,
+      advancedBranding: true,
+      quotesAndOrders: true,
       customDomain: false
     },
     create: {
-      type: "FREE",
-      name: "Free",
-      maxProducts: 25,
-      maxCategories: 5,
+      type: "normal",
+      name: "Normal",
+      description: "Plan normal para auditoria multi-tenant",
+      maxProducts: 50,
+      maxCategories: 20,
       maxAiConversationsMonthly: 100,
       maxUsers: 1,
+      maxMembers: 1,
       maxStores: 1,
-      maxTemplates: 1,
-      advancedBranding: false,
-      quotesAndOrders: false,
+      maxTemplates: 4,
+      advancedBranding: true,
+      quotesAndOrders: true,
       customDomain: false
     }
   });
@@ -71,7 +75,7 @@ async function createTenant(label: "a" | "b", planId: string) {
     data: {
       ownerId: user.id,
       planId,
-      planType: "FREE",
+      planType: "normal",
       name: `Tenant ${label.toUpperCase()} ${runId}`,
       slug: `${runId}-${label}`,
       publicSlug: `${runId}-${label}`,

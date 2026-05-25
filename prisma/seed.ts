@@ -20,7 +20,7 @@ async function upsertOwner(email: string, name: string, passwordHash: string, ro
   return prisma.user.upsert({
     where: { email },
     update: { role, passwordHash, emailVerifiedAt: new Date() },
-    create: { email, name, passwordHash, role, emailVerifiedAt: new Date() }
+    create: { email, name, passwordHash, role, emailVerifiedAt: new Date(), saasTheme: "violet-premium", themeOnboardingCompleted: false }
   });
 }
 
@@ -36,9 +36,9 @@ async function main() {
       })
     )
   );
-  const freePlan = plans.find((plan) => plan.type === PlanType.FREE);
-  const proPlan = plans.find((plan) => plan.type === PlanType.PRO);
-  if (!freePlan || !proPlan) throw new Error("No se pudieron crear los planes demo");
+  const normalPlan = plans.find((plan) => plan.type === PlanType.NORMAL);
+  const premiumPlan = plans.find((plan) => plan.type === PlanType.PREMIUM);
+  if (!normalPlan || !premiumPlan) throw new Error("No se pudieron crear los planes demo");
 
   await upsertOwner("admin@demo.cl", "Admin Plataforma", passwordHash, UserRole.SUPER_ADMIN);
   const storeOwner = await upsertOwner("storelamon@demo.cl", "Dueña STORELAMON", passwordHash);
@@ -47,9 +47,10 @@ async function main() {
   const store = await prisma.business.upsert({
     where: { slug: "storelamon" },
     update: {
-      planId: proPlan.id,
-      planType: PlanType.PRO,
+      planId: premiumPlan.id,
+      planType: PlanType.PREMIUM,
       publicSlug: "storelamon",
+      catalogPalette: "minimal-arena",
       catalogTemplate: CatalogTemplate.BOUTIQUE_PREMIUM,
       primaryColor: "#111827",
       secondaryColor: "#FDF2F8",
@@ -60,9 +61,10 @@ async function main() {
     },
     create: {
       ownerId: storeOwner.id,
-      planId: proPlan.id,
-      planType: PlanType.PRO,
+      planId: premiumPlan.id,
+      planType: PlanType.PREMIUM,
       name: "STORELAMON",
+      catalogPalette: "minimal-arena",
       slug: "storelamon",
       publicSlug: "storelamon",
       description: "Tienda demo de ropa femenina, outfits urbanos y accesorios color rosa.",
@@ -79,8 +81,8 @@ async function main() {
       buttonRadius: 18,
       subscription: {
         create: {
-          planId: proPlan.id,
-          status: "TRIALING"
+          planId: premiumPlan.id,
+          status: "active"
         }
       },
       aiSettings: {
@@ -95,9 +97,10 @@ async function main() {
   const sec = await prisma.business.upsert({
     where: { slug: "catg-seguridad" },
     update: {
-      planId: proPlan.id,
-      planType: PlanType.PRO,
+      planId: premiumPlan.id,
+      planType: PlanType.PREMIUM,
       publicSlug: "catg-seguridad",
+      catalogPalette: "minimal-arena",
       catalogTemplate: CatalogTemplate.TECH_PRO,
       primaryColor: "#0F172A",
       secondaryColor: "#E0F2FE",
@@ -108,9 +111,10 @@ async function main() {
     },
     create: {
       ownerId: secOwner.id,
-      planId: proPlan.id,
-      planType: PlanType.PRO,
+      planId: premiumPlan.id,
+      planType: PlanType.PREMIUM,
       name: "CATG Seguridad",
+      catalogPalette: "minimal-arena",
       slug: "catg-seguridad",
       publicSlug: "catg-seguridad",
       description: "Tienda demo de cámaras CCTV, seguridad para casas y locales.",
@@ -127,8 +131,8 @@ async function main() {
       buttonRadius: 10,
       subscription: {
         create: {
-          planId: proPlan.id,
-          status: "TRIALING"
+          planId: premiumPlan.id,
+          status: "active"
         }
       },
       aiSettings: {
@@ -269,13 +273,13 @@ async function main() {
 
   await prisma.subscription.upsert({
     where: { businessId: store.id },
-    update: { planId: proPlan.id },
-    create: { businessId: store.id, planId: proPlan.id }
+    update: { planId: premiumPlan.id, status: "active" },
+    create: { businessId: store.id, planId: premiumPlan.id, status: "active" }
   });
   await prisma.subscription.upsert({
     where: { businessId: sec.id },
-    update: { planId: proPlan.id },
-    create: { businessId: sec.id, planId: proPlan.id }
+    update: { planId: premiumPlan.id, status: "active" },
+    create: { businessId: sec.id, planId: premiumPlan.id, status: "active" }
   });
 
   await prisma.membership.upsert({
