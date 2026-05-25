@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
+import { stringifyJsonSafely } from "@/lib/safe-json";
 
 type AuditInput = {
   userId?: string | null;
@@ -9,15 +10,6 @@ type AuditInput = {
   resourceId?: string | null;
   metadata?: Record<string, unknown>;
 };
-
-function safeMetadata(metadata?: Record<string, unknown>) {
-  if (!metadata) return null;
-  try {
-    return JSON.stringify(metadata);
-  } catch {
-    return JSON.stringify({ serializationError: true });
-  }
-}
 
 export async function writeAuditLog(input: AuditInput) {
   let headerStore: Awaited<ReturnType<typeof headers>> | null = null;
@@ -37,7 +29,7 @@ export async function writeAuditLog(input: AuditInput) {
       action: input.action,
       resourceType: input.resourceType,
       resourceId: input.resourceId ?? null,
-      metadata: safeMetadata(input.metadata),
+      metadata: input.metadata ? stringifyJsonSafely(input.metadata) : null,
       ip,
       userAgent
     }

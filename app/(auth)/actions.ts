@@ -9,6 +9,23 @@ import { getFreePlan } from "@/lib/plans";
 import { StoreRole } from "@/lib/enums";
 import { assertRateLimit, getClientIp, rateLimitKey, RateLimitError } from "@/lib/rate-limit";
 import { loginSchema, normalizePublicSlug, registerSchema, reservedPublicSlugs } from "@/lib/validation";
+import { createEmailVerificationToken, sendVerificationEmail } from "@/lib/auth/email-verification";
+import { passwordPolicyDescription } from "@/lib/password-policy";
+
+function authRedirect(path: "login" | "register", message: string): never {
+  redirect(`/${path}?error=${encodeURIComponent(message)}`);
+}
+
+function registerUniqueError(error: Prisma.PrismaClientKnownRequestError) {
+  const target = Array.isArray(error.meta?.target) ? error.meta?.target.join(",") : String(error.meta?.target ?? "");
+  if (target.includes("email")) {
+    return "Este correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña.";
+  }
+  if (target.includes("slug") || target.includes("publicSlug")) {
+    return "Ese nombre de tienda ya está ocupado. Prueba con una variación.";
+  }
+  return "Ese correo o nombre de tienda ya está registrado. Intenta con otros datos.";
+}
 
 async function enforceAuthLimit(scope: "login" | "register", limit: number) {
   const ip = await getClientIp();
@@ -16,7 +33,7 @@ async function enforceAuthLimit(scope: "login" | "register", limit: number) {
     await assertRateLimit(rateLimitKey({ endpoint: `auth:${scope}`, ip }), limit, 15 * 60 * 1000);
   } catch (error) {
     if (error instanceof RateLimitError) {
-      redirect(`/${scope === "login" ? "login" : "register"}?error=Demasiados intentos. Intenta nuevamente en ${error.retryAfterSeconds}s`);
+      authRedirect(scope === "login" ? "login" : "register", `Demasiados intentos. Intenta nuevamente en ${error.retryAfterSeconds}s`);
     }
     throw error;
   }
@@ -50,7 +67,7 @@ export async function registerAction(formData: FormData) {
       adminBootstrapSecret: String(formData.get("adminBootstrapSecret") || "")
     });
   } catch (error) {
-    if (error instanceof BootstrapSecretError) redirect(`/register?error=${error.message}`);
+    if (error instanceof BootstrapSecretError) authRedirect("register", error.message);
     throw error;
   }
 
@@ -58,17 +75,19 @@ export async function registerAction(formData: FormData) {
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
     businessName: formData.get("businessName"),
     businessType: formData.get("businessType") || "Tienda"
   });
 
   if (!parsed.success) {
-    redirect("/register?error=Completa todos los campos. La contraseña debe tener mínimo 8 caracteres");
+    const message = parsed.error.issues[0]?.message ?? `Completa todos los campos. ${passwordPolicyDescription}`;
+    authRedirect("register", message);
   }
 
   const { name, email, password, businessName, businessType } = parsed.data;
   const exists = await prisma.user.findUnique({ where: { email } });
-  if (exists) redirect("/register?error=Ese email ya está registrado");
+  if (exists) authRedirect("register", "Este correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña.");
 
   let baseSlug = normalizePublicSlug(slugify(businessName) || "tienda") || "tienda";
   if (reservedPublicSlugs.has(baseSlug)) baseSlug = `${baseSlug}-tienda`;
@@ -122,7 +141,7 @@ export async function registerAction(formData: FormData) {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      redirect("/register?error=Ese email o slug ya está registrado. Intenta con otro nombre de tienda");
+      authRedirect("register", registerUniqueError(error));
     }
     throw error;
   }
@@ -135,6 +154,9 @@ export async function registerAction(formData: FormData) {
       create: { userId: user.id, businessId: business.id, role: StoreRole.STORE_OWNER }
     });
   }
+
+  const verification = await createEmailVerificationToken(user.id);
+  await sendVerificationEmail({ email: user.email, name: user.name, token: verification.token });
 
   await createSession(user.id);
   redirect("/dashboard");

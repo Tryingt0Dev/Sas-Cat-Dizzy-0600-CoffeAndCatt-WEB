@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, hasPlatformAccess, SELECTED_BUSINESS_COOKIE } from "@/lib/auth";
 import { StoreRole } from "@/lib/enums";
+import { normalizeStoreRole, storeRoleCan } from "@/lib/auth/permissions";
 import { effectivePlanLimits } from "@/services/plan-guard";
 
 export class AuthenticationError extends Error {
@@ -23,7 +24,7 @@ export class StoreSelectionRequiredError extends Error {
   }
 }
 
-type StorePermission =
+export type StorePermission =
   | "view_dashboard"
   | "manage_products"
   | "manage_categories"
@@ -42,32 +43,20 @@ type StoreAccessOptions = {
   request?: Request;
 };
 
-const roleRank: Record<StoreRole, number> = {
-  [StoreRole.STORE_OWNER]: 4,
-  [StoreRole.STORE_ADMIN]: 3,
-  [StoreRole.STORE_STAFF]: 2,
-  [StoreRole.VIEWER]: 1
-};
-
 const permissionMinimumRole: Record<StorePermission, StoreRole> = {
   view_dashboard: StoreRole.VIEWER,
-  manage_products: StoreRole.STORE_STAFF,
-  manage_categories: StoreRole.STORE_STAFF,
+  manage_products: StoreRole.STORE_MANAGER,
+  manage_categories: StoreRole.STORE_MANAGER,
   manage_customers: StoreRole.STORE_STAFF,
   manage_conversations: StoreRole.STORE_STAFF,
   manage_quotes_orders: StoreRole.STORE_ADMIN,
   manage_settings: StoreRole.STORE_ADMIN,
-  manage_uploads: StoreRole.STORE_STAFF,
+  manage_uploads: StoreRole.STORE_MANAGER,
   use_ai: StoreRole.STORE_STAFF
 };
 
-function normalizeRole(role: string | null | undefined): StoreRole {
-  if (role && Object.values(StoreRole).includes(role as StoreRole)) return role as StoreRole;
-  return StoreRole.VIEWER;
-}
-
 function roleCan(role: StoreRole, permission: StorePermission) {
-  return roleRank[role] >= roleRank[permissionMinimumRole[permission]];
+  return storeRoleCan(role, permissionMinimumRole[permission]);
 }
 
 function getCookieFromRequest(req: Request, name: string) {
@@ -187,10 +176,10 @@ export async function getStoreAccess(options?: StoreAccessOptions) {
   }
 
   const storeRole = isPlatformAdmin
-    ? StoreRole.STORE_OWNER
-    : business.ownerId === user.id
       ? StoreRole.STORE_OWNER
-      : normalizeRole(business.memberships[0]?.role);
+      : business.ownerId === user.id
+        ? StoreRole.STORE_OWNER
+        : normalizeStoreRole(business.memberships[0]?.role);
 
   if (options?.permission && !isPlatformAdmin && !roleCan(storeRole, options.permission)) {
     throw new AuthorizationError("No tienes permisos para esta operacion");

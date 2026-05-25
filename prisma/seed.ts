@@ -1,76 +1,34 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { CatalogTemplate, PlanType, StoreRole, UserRole, type UserRole as UserRoleValue } from "../lib/enums";
+import { planDefinitions } from "../lib/plans";
+import { isStrongPassword, passwordPolicyDescription } from "../lib/password-policy";
 
 const prisma = new PrismaClient();
 
-const seedPlanDefinitions = {
-  FREE: {
-    type: PlanType.FREE,
-    name: "Free",
-    maxProducts: 25,
-    maxCategories: 5,
-    maxAiConversationsMonthly: 100,
-    maxUsers: 1,
-    maxStores: 1,
-    maxTemplates: 1,
-    advancedBranding: false,
-    quotesAndOrders: false,
-    customDomain: false
-  },
-  STARTER: {
-    type: PlanType.STARTER,
-    name: "Starter",
-    maxProducts: 150,
-    maxCategories: 20,
-    maxAiConversationsMonthly: 1000,
-    maxUsers: 2,
-    maxStores: 1,
-    maxTemplates: 2,
-    advancedBranding: true,
-    quotesAndOrders: true,
-    customDomain: false
-  },
-  PRO: {
-    type: PlanType.PRO,
-    name: "Pro",
-    maxProducts: 1000,
-    maxCategories: 80,
-    maxAiConversationsMonthly: 5000,
-    maxUsers: 5,
-    maxStores: 3,
-    maxTemplates: 4,
-    advancedBranding: true,
-    quotesAndOrders: true,
-    customDomain: false
-  },
-  BUSINESS: {
-    type: PlanType.BUSINESS,
-    name: "Business",
-    maxProducts: 5000,
-    maxCategories: 300,
-    maxAiConversationsMonthly: 25000,
-    maxUsers: 20,
-    maxStores: 10,
-    maxTemplates: 4,
-    advancedBranding: true,
-    quotesAndOrders: true,
-    customDomain: true
+function seedPassword() {
+  const configured = process.env.DEMO_SEED_PASSWORD?.trim();
+  const password = configured || `Local-${crypto.randomBytes(12).toString("base64url")}!7Aa`;
+  if (!isStrongPassword(password, "demo@example.com")) {
+    throw new Error(`DEMO_SEED_PASSWORD no cumple la politica. ${passwordPolicyDescription}`);
   }
-} as const;
+  return { password, generated: !configured };
+}
 
-async function upsertOwner(email: string, name: string, role: UserRoleValue = UserRole.USER) {
-  const passwordHash = await bcrypt.hash("Demo1234!", 10);
+async function upsertOwner(email: string, name: string, passwordHash: string, role: UserRoleValue = UserRole.USER) {
   return prisma.user.upsert({
     where: { email },
-    update: { role },
-    create: { email, name, passwordHash, role }
+    update: { role, passwordHash, emailVerifiedAt: new Date() },
+    create: { email, name, passwordHash, role, emailVerifiedAt: new Date() }
   });
 }
 
 async function main() {
+  const demoPassword = seedPassword();
+  const passwordHash = await bcrypt.hash(demoPassword.password, 10);
   const plans = await Promise.all(
-    Object.values(seedPlanDefinitions).map((plan) =>
+    Object.values(planDefinitions).map((plan) =>
       prisma.plan.upsert({
         where: { type: plan.type },
         update: plan,
@@ -82,9 +40,9 @@ async function main() {
   const proPlan = plans.find((plan) => plan.type === PlanType.PRO);
   if (!freePlan || !proPlan) throw new Error("No se pudieron crear los planes demo");
 
-  await upsertOwner("admin@demo.cl", "Admin Plataforma", UserRole.PLATFORM_ADMIN);
-  const storeOwner = await upsertOwner("storelamon@demo.cl", "Dueña STORELAMON");
-  const secOwner = await upsertOwner("seguridad@demo.cl", "Dueño CATG Seguridad");
+  await upsertOwner("admin@demo.cl", "Admin Plataforma", passwordHash, UserRole.SUPER_ADMIN);
+  const storeOwner = await upsertOwner("storelamon@demo.cl", "Dueña STORELAMON", passwordHash);
+  const secOwner = await upsertOwner("seguridad@demo.cl", "Dueño CATG Seguridad", passwordHash);
 
   const store = await prisma.business.upsert({
     where: { slug: "storelamon" },
@@ -331,7 +289,12 @@ async function main() {
     create: { userId: secOwner.id, businessId: sec.id, role: StoreRole.STORE_OWNER }
   });
 
-  console.log("Seed listo. Login demo: storelamon@demo.cl / Demo1234!, seguridad@demo.cl / Demo1234!, admin@demo.cl / Demo1234!");
+  console.log("Seed listo. Usuarios demo: storelamon@demo.cl, seguridad@demo.cl, admin@demo.cl");
+  if (demoPassword.generated) {
+    console.log(`Contraseña demo temporal para entorno local: ${demoPassword.password}`);
+  } else {
+    console.log("Contraseña demo tomada desde DEMO_SEED_PASSWORD.");
+  }
 }
 
 main()

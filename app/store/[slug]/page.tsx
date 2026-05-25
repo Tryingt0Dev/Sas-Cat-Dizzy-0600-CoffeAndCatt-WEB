@@ -29,6 +29,8 @@ export async function generateMetadata({ params }: StorePageProps): Promise<Meta
     select: {
       name: true,
       description: true,
+      seoTitle: true,
+      seoDescription: true,
       bannerUrl: true,
       logoUrl: true
     }
@@ -40,8 +42,8 @@ export async function generateMetadata({ params }: StorePageProps): Promise<Meta
     };
   }
 
-  const title = `${business.name} | Catalogo`;
-  const description = business.description ?? `Catalogo oficial de ${business.name}`;
+  const title = business.seoTitle ? `${business.seoTitle}` : `${business.name} | Catalogo`;
+  const description = business.seoDescription ?? business.description ?? `Catalogo oficial de ${business.name}`;
   const image = business.bannerUrl || business.logoUrl || undefined;
 
   return {

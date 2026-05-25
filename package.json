@@ -18,6 +18,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-admins": "tsx scripts/reset-admin-users.ts",
     "setup": "prisma generate && prisma migrate dev --name init && tsx prisma/seed.ts",
     "reset": "prisma migrate reset --force && tsx prisma/seed.ts",
     "clean:next": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true }); console.log('.next removed')\"",

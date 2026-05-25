@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LearningLink } from "@/components/LearningLink";
 
 type OnboardingItem = {
   label: string;
@@ -43,6 +44,13 @@ export function OnboardingChecklist({ items }: { items: OnboardingItem[] }) {
             </div>
           </Link>
         ))}
+      </div>
+      <div className="mt-6 rounded-3xl bg-gray-50 p-4 text-left text-sm text-gray-600">
+        <p className="font-bold text-gray-900">Más ayuda</p>
+        <p className="mt-2 text-gray-600">Sigue esta guía para completar los pasos de forma segura y evitar errores comunes.</p>
+        <div className="mt-4">
+          <LearningLink href="/dashboard/learning">Ver guía paso a paso</LearningLink>
+        </div>
       </div>
     </section>
   );

@@ -10,6 +10,7 @@ const links = [
   ["Conversaciones", "/dashboard/conversations"],
   ["Cotizaciones", "/dashboard/quotes"],
   ["Pedidos", "/dashboard/orders"],
+  ["Guía", "/dashboard/learning"],
   ["Ajustes", "/dashboard/settings"]
 ];
 

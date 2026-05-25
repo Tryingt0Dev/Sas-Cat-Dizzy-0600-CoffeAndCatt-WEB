@@ -6,7 +6,8 @@ import { aiRequestSchema, aiResponseSchema, type AiResponsePayload } from "@/lib
 import { assertRateLimit, getClientIp, rateLimitKey, RateLimitError } from "@/lib/rate-limit";
 import { requestHasAllowedOrigin } from "@/lib/request-security";
 import { formatCLP, getFinalPrice } from "@/lib/format";
-import { effectivePlanLimits } from "@/services/plan-guard";
+import { parseJsonSafely } from "@/lib/safe-json";
+import { PlanAccessError, canUseAI, effectivePlanLimits } from "@/services/plan-guard";
 import { analyzeProductQuery, type ProductSearchAnalysis, type RelevantProduct } from "@/services/product-search";
 
 type ActiveConversation = {
@@ -15,14 +16,6 @@ type ActiveConversation = {
   customerId: string | null;
   status: string;
 };
-
-function safeJsonParse(value: string) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
 
 function formatStockForCustomer(stock: number) {
   if (stock <= 0) return "por ahora aparece sin stock";
@@ -211,6 +204,15 @@ export async function POST(req: Request) {
 
     if (!business) {
       return NextResponse.json({ ok: false, error: "Tienda no encontrada" }, { status: 404 });
+    }
+
+    try {
+      await canUseAI(business.id);
+    } catch (error) {
+      if (error instanceof PlanAccessError) {
+        return NextResponse.json({ ok: false, error: error.message }, { status: 402 });
+      }
+      throw error;
     }
 
     const ip = await getClientIp(req);
@@ -436,7 +438,7 @@ ${formatAvailabilityContext(searchAnalysis)}
         });
 
         const raw = completion.choices[0]?.message?.content || "";
-        const parsedAi = aiResponseSchema.safeParse(safeJsonParse(raw));
+        const parsedAi = aiResponseSchema.safeParse(parseJsonSafely(raw));
         if (parsedAi.success) {
           aiResult = parsedAi.data;
         } else {

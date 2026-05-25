@@ -1,14 +1,24 @@
 export const UserRole = {
   USER: "USER",
-  PLATFORM_ADMIN: "PLATFORM_ADMIN"
+  SUPPORT: "SUPPORT",
+  DEVELOPER: "DEVELOPER",
+  PLATFORM_ADMIN: "PLATFORM_ADMIN",
+  SUPER_ADMIN: "SUPER_ADMIN",
+  ADMIN_GLOBAL: "ADMIN_GLOBAL",
+  OWNER: "OWNER"
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const StoreRole = {
   STORE_OWNER: "STORE_OWNER",
   STORE_ADMIN: "STORE_ADMIN",
+  STORE_MANAGER: "STORE_MANAGER",
   STORE_STAFF: "STORE_STAFF",
-  VIEWER: "VIEWER"
+  VIEWER: "VIEWER",
+  OWNER: "OWNER",
+  ADMIN: "ADMIN",
+  MANAGER: "MANAGER",
+  STAFF: "STAFF"
 } as const;
 export type StoreRole = (typeof StoreRole)[keyof typeof StoreRole];
 
@@ -24,7 +34,8 @@ export const PlanType = {
   FREE: "FREE",
   STARTER: "STARTER",
   PRO: "PRO",
-  BUSINESS: "BUSINESS"
+  BUSINESS: "BUSINESS",
+  ENTERPRISE: "ENTERPRISE"
 } as const;
 export type PlanType = (typeof PlanType)[keyof typeof PlanType];
 

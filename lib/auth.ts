@@ -4,6 +4,14 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { StoreRole, UserRole } from "@/lib/enums";
+import {
+  ADMIN_PANEL_ROLES,
+  GLOBAL_ADMIN_ROLES,
+  PLATFORM_ADMIN_ROLES,
+  SUPER_ADMIN_ROLES,
+  canAccessAdminPanel,
+  hasGlobalRole
+} from "@/lib/auth/permissions";
 
 const SESSION_COOKIE = "catg_session";
 export const SELECTED_BUSINESS_COOKIE = "catg_selected_business";
@@ -14,6 +22,8 @@ type UserAccessIdentity = {
   email: string;
   role: string;
 };
+
+export { ADMIN_PANEL_ROLES, GLOBAL_ADMIN_ROLES, PLATFORM_ADMIN_ROLES, SUPER_ADMIN_ROLES };
 
 export class BootstrapSecretError extends Error {
   constructor(message = "Bootstrap de administrador invalido") {
@@ -28,8 +38,11 @@ function configuredPlatformOwnerEmails() {
 }
 
 export function hasPlatformAccess(user: UserAccessIdentity | null | undefined) {
-  if (!user) return false;
-  return user.role === UserRole.PLATFORM_ADMIN;
+  return hasGlobalRole(user, PLATFORM_ADMIN_ROLES);
+}
+
+export function hasAdminPanelAccess(user: UserAccessIdentity | null | undefined) {
+  return canAccessAdminPanel(user);
 }
 
 export function hasDeveloperPlanAccess(user: UserAccessIdentity | null | undefined) {
@@ -61,7 +74,7 @@ export function resolvePublicRegistrationRole(input: { adminBootstrapSecret?: st
     throw new BootstrapSecretError("ADMIN_BOOTSTRAP_SECRET invalido");
   }
 
-  return UserRole.PLATFORM_ADMIN;
+  return UserRole.SUPER_ADMIN;
 }
 
 export async function hashPassword(password: string) {
@@ -134,6 +147,22 @@ export async function requirePlatformAdmin(req?: Request) {
   const user = await requireUser(req);
   if (!hasPlatformAccess(user)) redirect("/dashboard");
   return user;
+}
+
+export async function requireSuperAdmin(req?: Request) {
+  const user = await requireUser(req);
+  if (!hasGlobalRole(user, SUPER_ADMIN_ROLES)) redirect("/dashboard");
+  return user;
+}
+
+export async function requireAdminPanelUser(req?: Request) {
+  const user = await requireUser(req);
+  if (!hasAdminPanelAccess(user)) redirect("/dashboard");
+  return user;
+}
+
+export async function requireDeveloperOrAdmin(req?: Request) {
+  return requireAdminPanelUser(req);
 }
 
 export async function getCurrentBusinessContext() {

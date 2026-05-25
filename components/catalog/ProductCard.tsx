@@ -2,8 +2,10 @@ import Link from "next/link";
 import { AskAiButton } from "@/components/catalog/AskAiButton";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { WhatsAppProductButton } from "@/components/catalog/WhatsAppProductButton";
+import { ProductAttributeDisplay } from "@/components/catalog/ProductAttributeDisplay";
 import { buildProductAiQuestion, defaultProductImage, type CatalogBusiness, type CatalogProduct, type ProductAiContext } from "@/lib/catalog";
 import { formatCLP, getFinalPrice } from "@/lib/format";
+import { parseJsonRecord } from "@/lib/safe-json";
 
 type ProductCardVariant = "modern" | "premium" | "fast" | "tech";
 
@@ -20,6 +22,7 @@ export function ProductCard({
   const formattedFinalPrice = formatCLP(finalPrice);
   const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
   const outOfStock = product.stock <= 0;
+  const attributes = product.attributes ?? parseJsonRecord(product.attributesJson) ?? undefined;
   const premium = variant === "premium";
   const fast = variant === "fast";
   const tech = variant === "tech";
@@ -65,6 +68,7 @@ export function ProductCard({
         <p className={tech ? "mt-2 min-h-[2.5rem] line-clamp-2 text-sm text-gray-600" : "mt-2 min-h-[2.5rem] line-clamp-2 text-sm text-gray-500"}>
           {product.description ?? "Disponible para consulta directa con la tienda."}
         </p>
+        <ProductAttributeDisplay attributes={attributes} businessType={business.businessType} maxVisible={tech ? 4 : 3} />
         {tech && (
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-gray-600">
             <span className="rounded-lg bg-gray-50 px-3 py-2">SKU {product.sku ?? "N/D"}</span>

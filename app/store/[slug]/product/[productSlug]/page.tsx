@@ -5,6 +5,7 @@ import { AskAiButton } from "@/components/catalog/AskAiButton";
 import { CatalogHeader } from "@/components/catalog/CatalogHeader";
 import { CatalogProductTracker } from "@/components/catalog/CatalogProductTracker";
 import { ProductCard } from "@/components/catalog/ProductCard";
+import { ProductAttributeDisplay } from "@/components/catalog/ProductAttributeDisplay";
 import { SafeImage } from "@/components/catalog/SafeImage";
 import { WhatsAppProductButton } from "@/components/catalog/WhatsAppProductButton";
 import { StoreChat } from "@/components/StoreChat";
@@ -12,6 +13,7 @@ import { buildProductAiQuestion, defaultProductImage, getCatalogThemeStyle, type
 import { prisma } from "@/lib/db";
 import { ProductStatus } from "@/lib/enums";
 import { formatCLP, getFinalPrice } from "@/lib/format";
+import { parseJsonRecord } from "@/lib/safe-json";
 
 type ProductPageProps = {
   params: Promise<{ slug: string; productSlug: string }>;
@@ -116,6 +118,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
   const outOfStock = product.stock <= 0;
   const productHref = `/store/${business.publicSlug}/product/${product.slug}`;
+  const productAttributes = parseJsonRecord(product.attributesJson);
   const productAiContext: ProductAiContext = {
     id: product.id,
     name: product.name,
@@ -186,13 +189,20 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
             {product.tags && (
               <div className="mt-5 flex flex-wrap gap-2">
-                {product.tags.split(",").map((tag) => (
+                {product.tags.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => (
                   <span key={tag.trim()} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
-                    {tag.trim()}
+                    {tag}
                   </span>
                 ))}
               </div>
             )}
+
+            {productAttributes ? (
+              <div className="mt-6 rounded-[var(--catalog-radius)] border border-black/10 bg-white p-4">
+                <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-[var(--catalog-accent)]">Ficha tecnica</p>
+                <ProductAttributeDisplay attributes={productAttributes} businessType={business.businessType} maxVisible={12} layout="list" />
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-3">
               <WhatsAppProductButton

@@ -1,11 +1,12 @@
 import crypto from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
+import { mkdir, readdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { assertRateLimit, getClientIp, rateLimitKey, RateLimitError } from "@/lib/rate-limit";
 import { requestHasAllowedOrigin } from "@/lib/request-security";
 import { writeAuditLog } from "@/services/audit-log";
 import { AuthenticationError, AuthorizationError, getStoreAccess } from "@/services/authorization";
+import { PlanAccessError, canUploadImage } from "@/services/plan-guard";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,12 @@ function detectImageExtension(bytes: Buffer) {
   }
 
   return null;
+}
+
+async function countStoredImages(businessId: string) {
+  const uploadsRoot = path.resolve(process.cwd(), "public", "uploads", businessId);
+  const files = await readdir(uploadsRoot).catch(() => []);
+  return files.filter((file) => /\.(jpe?g|png|webp)$/i.test(file)).length;
 }
 
 function accessErrorResponse(error: unknown) {
@@ -126,6 +133,15 @@ export async function POST(req: Request) {
     const detectedExtension = detectImageExtension(bytes);
     if (!detectedExtension || detectedExtension !== declaredType.canonicalExtension) {
       return NextResponse.json({ ok: false, error: "El archivo no coincide con un formato de imagen permitido" }, { status: 400 });
+    }
+
+    try {
+      await canUploadImage(access.business.id, await countStoredImages(access.business.id));
+    } catch (error) {
+      if (error instanceof PlanAccessError) {
+        return NextResponse.json({ ok: false, error: error.message }, { status: 402 });
+      }
+      throw error;
     }
 
     const uploadsRoot = path.join(process.cwd(), "public", "uploads", access.business.id);

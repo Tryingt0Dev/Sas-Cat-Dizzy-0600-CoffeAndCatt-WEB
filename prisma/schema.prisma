@@ -12,17 +12,19 @@ datasource db {
 // When migrating to PostgreSQL/Supabase, these String fields can be converted to native Prisma enums.
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  name         String
-  passwordHash String
-  role         String     @default("USER")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  sessions     Session[]
-  businesses   Business[]
-  memberships  Membership[]
-  auditLogs     AuditLog[]
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  name                    String
+  passwordHash            String
+  role                    String                   @default("USER")
+  emailVerifiedAt         DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  sessions                Session[]
+  businesses              Business[]
+  memberships             Membership[]
+  auditLogs               AuditLog[]
+  emailVerificationTokens EmailVerificationToken[]
 }
 
 model Session {
@@ -32,6 +34,19 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Business {
@@ -60,6 +75,12 @@ model Business {
   instagramUrl      String?
   businessType      String?
   address           String?
+  welcomeMessage    String?
+  seoTitle          String?
+  seoDescription    String?
+  seoKeywords       String?
+  showFeaturedCategories Boolean @default(true)
+  showFeaturedProducts Boolean @default(true)
   currency          String         @default("CLP")
   isActive          Boolean        @default(true)
   createdAt         DateTime       @default(now())
@@ -131,14 +152,22 @@ model Plan {
   type                      String         @unique
   name                      String
   maxProducts               Int
+  maxImages                 Int            @default(100)
   maxCategories             Int            @default(10)
   maxAiConversationsMonthly Int
   maxUsers                  Int
+  maxMembers                Int            @default(1)
   maxStores                 Int            @default(1)
   maxTemplates              Int
+  aiEnabled                 Boolean        @default(true)
   advancedBranding          Boolean        @default(false)
+  advancedSeoEnabled        Boolean        @default(false)
+  analyticsEnabled          Boolean        @default(false)
+  pageBuilderEnabled        Boolean        @default(false)
+  advancedAttributesEnabled Boolean        @default(false)
   quotesAndOrders           Boolean        @default(false)
   customDomain              Boolean        @default(false)
+  supportLevel              String         @default("community")
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
   businesses                Business[]
@@ -154,6 +183,7 @@ model Subscription {
   status                 String    @default("TRIALING")
   currentPeriodStart     DateTime  @default(now())
   currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
   provider               String?
   providerCustomerId     String?
   providerSubscriptionId String?
@@ -162,6 +192,19 @@ model Subscription {
 
   @@index([planId])
   @@index([status])
+  @@index([providerSubscriptionId])
+}
+
+model PlatformSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isSecret    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
 }
 
 model Category {
@@ -176,6 +219,7 @@ model Category {
 
   @@unique([businessId, slug])
   @@index([businessId])
+  @@index([businessId, createdAt])
 }
 
 model Product {
@@ -196,6 +240,8 @@ model Product {
   minStock           Int         @default(0)
   imageUrl           String?
   tags               String?
+  attributesJson     String?
+  variantsJson       String?
   status             String      @default("ACTIVE")
   featured           Boolean     @default(false)
   aiConsultCount     Int         @default(0)
@@ -208,6 +254,9 @@ model Product {
 
   @@unique([businessId, slug])
   @@index([businessId])
+  @@index([businessId, sku])
+  @@index([businessId, categoryId])
+  @@index([businessId, status])
   @@index([categoryId])
   @@index([status])
 }

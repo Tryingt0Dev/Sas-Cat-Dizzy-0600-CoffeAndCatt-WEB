@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
+import { HelpTooltip } from "@/components/HelpTooltip";
 import { Input, Select, Textarea } from "@/components/Input";
+import { LearningLink } from "@/components/LearningLink";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionGuide } from "@/components/SectionGuide";
 import { formatCLP } from "@/lib/format";
 import { CustomerStatus } from "@/lib/enums";
 import { updateCustomerAction } from "@/app/dashboard/customers/actions";
@@ -31,29 +35,67 @@ export default async function CustomerDetailPage({
 
   return (
     <div>
+      <PageHeader eyebrow="CRM" title="Ficha del cliente" description="Revisa detalles, historial y acciones para cada cliente o lead." />
+      <SectionGuide
+        eyebrow="Cliente"
+        title="Conoce el estado de tu lead"
+        description="Actualiza datos de contacto, estado y score para priorizar el seguimiento correcto." 
+        help="Un cliente con score alto y conversaciones recientes merece atención rápida." 
+        actions={<LearningLink href="/dashboard/learning#clientes">Ver guía de clientes</LearningLink>}
+      />
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/dashboard/customers" className="text-sm font-bold text-gray-500">Volver a clientes</Link>
           <h1 className="mt-2 text-4xl font-black">{customer.name ?? customer.phone ?? "Cliente web"}</h1>
           <p className="mt-2 text-gray-500">{customer.email ?? "Sin email"} · {customer.phone ?? "Sin teléfono"}</p>
         </div>
-        <span className="rounded-full bg-gray-900 px-4 py-2 text-sm font-black text-white">Score {customer.leadScore}</span>
+        <div className="flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-black text-white">
+          <span>Score {customer.leadScore}</span>
+          <HelpTooltip description="El score muestra la prioridad del cliente según su actividad y potencial de compra." />
+        </div>
       </div>
       {resolvedSearchParams?.success && <div className="mb-4 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-700">{resolvedSearchParams.success}</div>}
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <Card>
-          <h2 className="text-xl font-black">Ficha CRM</h2>
-          <form action={updateCustomerAction} className="mt-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black">Ficha CRM</h2>
+            <HelpTooltip description="Edita la información de contacto y el estado del cliente para mejorar el seguimiento." />
+          </div>
+          <p className="mt-1 text-sm text-gray-500">Guarda los datos del cliente y registra notas internas útiles para el equipo.</p>
+          <form action={updateCustomerAction} className="mt-5 space-y-4">
             <input type="hidden" name="id" value={customer.id} />
-            <Input name="name" defaultValue={customer.name ?? ""} placeholder="Nombre" />
-            <Input name="phone" defaultValue={customer.phone ?? ""} placeholder="Teléfono" />
-            <Input name="email" type="email" defaultValue={customer.email ?? ""} placeholder="Email" />
-            <Select name="status" defaultValue={customer.status}>
-              {Object.values(CustomerStatus).map((status) => <option key={status} value={status}>{status}</option>)}
-            </Select>
-            <Input name="leadScore" type="number" min={0} max={100} defaultValue={customer.leadScore} />
-            <Textarea name="notes" defaultValue={customer.notes ?? ""} placeholder="Notas internas" rows={6} />
+            <label className="block text-sm font-semibold text-gray-900">
+              Nombre
+              <Input name="name" defaultValue={customer.name ?? ""} placeholder="Nombre" />
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Teléfono
+              <Input name="phone" defaultValue={customer.phone ?? ""} placeholder="Teléfono" />
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Email
+              <Input name="email" type="email" defaultValue={customer.email ?? ""} placeholder="Email" />
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Estado
+              <div className="mt-1 flex items-center gap-2">
+                <Select name="status" defaultValue={customer.status}>
+                  {Object.values(CustomerStatus).map((status) => <option key={status} value={status}>{status}</option>)}
+                </Select>
+                <HelpTooltip description="Actualiza si el cliente está en seguimiento, interesado o cerrado." />
+              </div>
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Lead score
+              <span className="mt-1 block text-xs text-gray-500">Valor de 0 a 100 para priorizar este cliente.</span>
+              <Input name="leadScore" type="number" min={0} max={100} defaultValue={customer.leadScore} />
+            </label>
+            <label className="block text-sm font-semibold text-gray-900">
+              Notas internas
+              <span className="mt-1 block text-xs text-gray-500">Registra detalles que tu equipo debe conocer sobre este cliente.</span>
+              <Textarea name="notes" defaultValue={customer.notes ?? ""} placeholder="Notas internas" rows={6} />
+            </label>
             <button className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white">Guardar cliente</button>
           </form>
         </Card>

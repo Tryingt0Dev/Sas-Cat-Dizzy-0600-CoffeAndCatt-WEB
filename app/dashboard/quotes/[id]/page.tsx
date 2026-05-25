@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
+import { HelpTooltip } from "@/components/HelpTooltip";
+import { LearningLink } from "@/components/LearningLink";
 import { PrintButton } from "@/components/PrintButton";
 import { formatCLP } from "@/lib/format";
 
@@ -17,12 +19,22 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
 
   return (
     <main className="mx-auto max-w-3xl bg-white p-8 print:p-0">
-      <div className="mb-6 flex justify-between gap-4 print:hidden">
-        <Link href="/dashboard/quotes" className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold">Volver</Link>
-        <PrintButton className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white" />
+      <div className="mb-6 flex flex-col gap-4 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link href="/dashboard/quotes" className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold">Volver</Link>
+          <PrintButton className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white" />
+        </div>
+        <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+          <p className="font-semibold">Consejo:</p>
+          <p className="mt-2">Imprime esta cotización o copia el texto para enviarla por WhatsApp. Verifica fecha de validez y estado antes de compartir.</p>
+          <LearningLink href="/dashboard/learning#ventas">Ver guía de cotizaciones</LearningLink>
+        </div>
       </div>
       <section className="border-b pb-6">
-        <p className="text-sm font-black uppercase tracking-[0.25em] text-gray-400">Cotización</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-gray-400">Cotización</p>
+          <HelpTooltip description="Esta vista muestra los detalles que puedes imprimir o enviar al cliente junto a la fecha de validez." />
+        </div>
         <h1 className="mt-2 text-4xl font-black">{business.name}</h1>
         <p className="mt-2 text-gray-500">#{quote.id.slice(-6).toUpperCase()} · {quote.createdAt.toLocaleDateString("es-CL")} · {quote.status}</p>
       </section>

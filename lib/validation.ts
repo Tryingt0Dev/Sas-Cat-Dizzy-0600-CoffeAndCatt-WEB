@@ -8,7 +8,9 @@ import {
   ProductStatus,
   QuoteStatus
 } from "@/lib/enums";
+import { StoreType } from "@/lib/store-types";
 import { slugify } from "@/lib/format";
+import { isStrongPassword, passwordPolicyDescription } from "@/lib/password-policy";
 
 export const requiredString = z.string().trim().min(1);
 export const optionalText = z.string().trim().optional().transform((value) => value || null);
@@ -87,9 +89,26 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   name: requiredString.max(120),
   email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(8).max(120),
+  password: z.string().min(1).max(120),
+  confirmPassword: z.string().min(1).max(120),
   businessName: requiredString.max(120),
   businessType: z.string().trim().max(80).optional().default("Tienda")
+}).superRefine((value, ctx) => {
+  if (value.password !== value.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Las contraseñas no coinciden",
+      path: ["confirmPassword"]
+    });
+  }
+
+  if (!isStrongPassword(value.password, value.email)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: passwordPolicyDescription,
+      path: ["password"]
+    });
+  }
 });
 
 export const productFormSchema = z.object({
@@ -107,7 +126,8 @@ export const productFormSchema = z.object({
   imageUrl: optionalImageUrl,
   tags: z.string().trim().max(300).optional().transform((value) => value || null),
   status: z.enum(enumValues(ProductStatus)).default(ProductStatus.ACTIVE),
-  featured: z.boolean().default(false)
+  featured: z.boolean().default(false),
+  productAttributes: z.record(z.string(), z.string().trim()).optional().nullable()
 });
 
 export const settingsFormSchema = z.object({
@@ -118,7 +138,7 @@ export const settingsFormSchema = z.object({
   description: optionalText,
   whatsappNumber: z.string().trim().max(40).optional().transform((value) => value || null),
   instagramUrl: optionalUrl,
-  businessType: z.string().trim().max(80).optional().transform((value) => value || null),
+  businessType: z.enum(enumValues(StoreType)).optional().transform((value) => value || null),
   address: z.string().trim().max(180).optional().transform((value) => value || null),
   catalogTemplate: z.enum(enumValues(CatalogTemplate)),
   primaryColor: colorSchema,
@@ -133,7 +153,14 @@ export const settingsFormSchema = z.object({
   instructions: optionalText,
   fallbackMessage: requiredString.max(500),
   allowAutoLead: z.boolean().default(false),
-  humanHandoffEnabled: z.boolean().default(false)
+  humanHandoffEnabled: z.boolean().default(false),
+  welcomeMessage: z.string().trim().max(280).optional().transform((value) => value || null),
+  seoTitle: z.string().trim().max(120).optional().transform((value) => value || null),
+  seoDescription: z.string().trim().max(180).optional().transform((value) => value || null),
+  seoKeywords: z.string().trim().max(240).optional().transform((value) => value || null),
+  faq: z.string().trim().max(2000).optional().transform((value) => value || null),
+  showFeaturedCategories: z.boolean().default(false),
+  showFeaturedProducts: z.boolean().default(false)
 });
 
 export const aiProductContextSchema = z.object({

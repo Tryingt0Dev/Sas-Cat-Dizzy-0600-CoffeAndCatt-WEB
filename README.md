@@ -58,6 +58,16 @@ NEXT_PUBLIC_APP_URL="https://your-domain.example"
 NEXT_ALLOWED_DEV_ORIGINS=""
 NEXT_SERVER_ACTION_ALLOWED_ORIGINS=""
 PLATFORM_OWNER_EMAILS="owner@example.com"
+ADMIN_BOOTSTRAP_SECRET="replace-with-32-plus-chars"
+DEMO_SEED_PASSWORD=""
+ALLOW_DESTRUCTIVE_ADMIN_RESET=""
+ADMIN_1_EMAIL="felipebustamante003@gmail.com"
+ADMIN_2_EMAIL="rivas.matias79@gmail.com"
+ADMIN_1_PASSWORD=""
+ADMIN_2_PASSWORD=""
+BILLING_PROVIDER="disabled"
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
 ```
 
 La app responde en modo demo local si no hay API key de IA configurada.
@@ -73,6 +83,7 @@ npm run typecheck
 npm run db:generate
 npm run db:migrate
 npm run db:seed
+npm run db:reset-admins
 npm run diagrams:all
 ```
 
@@ -130,9 +141,13 @@ start docs\diagrams\proyecto-completo-viewer.html
 
 ## Usuarios Demo
 
-- `storelamon@demo.cl` / `Demo1234!`
-- `seguridad@demo.cl` / `Demo1234!`
-- `admin@demo.cl` / `Demo1234!`
+El seed local crea usuarios demo, pero no documenta contrasenas fijas.
+
+- `storelamon@demo.cl`
+- `seguridad@demo.cl`
+- `admin@demo.cl`
+
+Define `DEMO_SEED_PASSWORD` en `.env` o usa la contrasena temporal que imprime `npm run db:seed` en consola local.
 
 ## Rutas Principales
 
@@ -163,13 +178,17 @@ start docs\diagrams\proyecto-completo-viewer.html
 ### Admin
 
 - `/admin`: superadmin de plataforma
+- `/admin/stores/[id]`: detalle y diagnostico de una tienda para administradores globales
+- `/api/billing/checkout`: endpoint preparado para checkout autenticado
+- `/api/billing/portal`: endpoint preparado para portal de billing autenticado
+- `/api/billing/webhook`: webhook de billing con firma Stripe cuando el proveedor esta activo
 
 ## Arquitectura Resumida
 
 - `Business` es el tenant principal.
 - Productos, categorias, clientes, conversaciones, cotizaciones, pedidos e IA cuelgan de `businessId`.
-- Las rutas privadas resuelven tienda con `getCurrentBusiness()`.
-- Las mutaciones sensibles usan `services/tenant-guard.ts`.
+- Las rutas privadas resuelven tienda con `getCurrentBusiness()` o `services/authorization.ts`.
+- Las mutaciones sensibles deben usar `requireStoreAccess()`/`getStoreAccess()` y filtrar por `businessId`.
 - El catalogo publico usa `slug` para resolver una tienda activa.
 - El chat IA guarda `conversationId`, historial y solo consulta productos de la tienda actual.
 - El upload local guarda archivos en `/public/uploads/{businessId}` y devuelve `/uploads/{businessId}/archivo`.
@@ -192,6 +211,8 @@ Cada tienda configura colores, logo, banner, radio de botones y template desde `
 - La IA no recibe productos de otras tiendas.
 - Los uploads requieren sesion y validacion de ownership.
 - SVG esta bloqueado para uploads.
+- Roles globales: `SUPER_ADMIN`, `PLATFORM_ADMIN`, `DEVELOPER`, `SUPPORT`, `USER` y aliases legacy.
+- Roles por tienda: `STORE_OWNER`, `STORE_ADMIN`, `STORE_MANAGER`, `STORE_STAFF`, `VIEWER`.
 - `PLATFORM_OWNER_EMAILS` permite marcar emails de dueño/desarrollador con acceso total sin consumir limites comerciales.
 
 ## Advertencias De Produccion
@@ -209,6 +230,14 @@ Antes de venderlo en produccion real:
 
 ## Documentacion
 
+- `ADMIN_PANEL_AND_CODE_OPTIMIZATION.md`: auditoria aplicada, panel admin global, proteccion, validacion y pendientes.
+- `SECURITY_AND_RBAC.md`: modelo de roles, permisos, helpers y patrones multi-tenant seguros.
+- `ADMIN_PANEL.md`: panel global, roles permitidos, acciones y pruebas de acceso.
+- `BILLING_AND_PLANS.md`: planes, limites, suscripciones y endpoints de pagos preparados.
+- `PRODUCTION_READINESS.md`: checklist de despliegue, variables, migraciones, backups y hardening.
+- `UI_POLISH_AND_CLIENT_EXPERIENCE.md`: pulido visual, estados vacios y lenguaje de cliente.
+- `AUTH_SECURITY_AND_ADMIN_SEED.md`: email unico, contrasena fuerte y reset local seguro de admins.
+- `ROADMAP_NEXT_STEPS.md`: prioridades y camino para vender el SaaS.
 - `docs/OVERVIEW.md`: vision funcional del SaaS.
 - `docs/ARCHITECTURE.md`: arquitectura tecnica.
 - `docs/FLOWS.md`: diagramas Mermaid.

@@ -27,9 +27,13 @@ export function CatalogHeader({
           )}
           <span className="min-w-0">
             <span className="block truncate text-lg font-black text-[var(--catalog-text)]">{business.name}</span>
-            <span className="block truncate text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
-              {business.businessType || business.address || "Catalogo oficial"}
-            </span>
+            {business.welcomeMessage ? (
+              <span className="block truncate text-sm text-gray-500">{business.welcomeMessage}</span>
+            ) : (
+              <span className="block truncate text-xs font-bold uppercase tracking-[0.18em] text-gray-400">
+                {business.businessType || business.address || "Catalogo oficial"}
+              </span>
+            )}
           </span>
         </Link>
 

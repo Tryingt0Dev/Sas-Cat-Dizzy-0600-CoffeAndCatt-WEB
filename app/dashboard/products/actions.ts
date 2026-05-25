@@ -6,21 +6,50 @@ import { prisma } from "@/lib/db";
 import { getFinalPrice, slugify } from "@/lib/format";
 import { ProductStatus } from "@/lib/enums";
 import { imageUrlBelongsToBusiness, productFormSchema } from "@/lib/validation";
-import { effectivePlanLimits } from "@/services/plan-guard";
+import { PlanAccessError, assertWithinPlanLimit } from "@/services/plan-guard";
 import { assertTenantProduct, resolveTenantCategoryId, TenantAccessError } from "@/services/tenant-guard";
 import { requireStoreAccess } from "@/services/authorization";
 import { writeAuditLog } from "@/services/audit-log";
-
-type ProductLimitUser = {
-  email: string;
-  role: string;
-};
 
 function nullableInt(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
   if (!raw) return null;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeAttributeKey(value: string) {
+  const trimmed = value.trim();
+  if (/^[a-zA-Z0-9_.-]+$/.test(trimmed)) return trimmed.slice(0, 60);
+  return slugify(trimmed).replace(/-/g, "_").slice(0, 60);
+}
+
+function parseProductAttributes(formData: FormData) {
+  const attributes: Record<string, string> = {};
+
+  for (const entry of Array.from(formData.entries())) {
+    const rawName = String(entry[0]);
+    const rawValue = entry[1];
+    if (!rawName.startsWith("productAttributes[") || !rawName.endsWith("]")) continue;
+    const key = rawName.slice("productAttributes[".length, -1).trim();
+    if (!key) continue;
+    const value = String(rawValue).trim();
+    if (value === "" || value === "null") {
+      delete attributes[key];
+      continue;
+    }
+    attributes[key] = value;
+  }
+
+  const customKeys = formData.getAll("customAttributeKey").map((value) => normalizeAttributeKey(String(value)));
+  const customValues = formData.getAll("customAttributeValue").map((value) => String(value).trim());
+  customKeys.forEach((key, index) => {
+    const value = customValues[index] ?? "";
+    if (!key || !value) return;
+    attributes[key] = value;
+  });
+
+  return Object.keys(attributes).length ? attributes : null;
 }
 
 function productPayloadFromForm(formData: FormData) {
@@ -39,7 +68,8 @@ function productPayloadFromForm(formData: FormData) {
     imageUrl: formData.get("imageUrl") || undefined,
     tags: formData.get("tags") || undefined,
     status: formData.get("status") || ProductStatus.ACTIVE,
-    featured: formData.get("featured") === "on"
+    featured: formData.get("featured") === "on",
+    productAttributes: parseProductAttributes(formData)
   });
 }
 
@@ -58,21 +88,20 @@ async function uniqueProductSlug(businessId: string, name: string, currentProduc
   }
 }
 
-async function assertProductLimit(businessId: string, user: ProductLimitUser) {
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    include: { plan: true }
-  });
-  const maxProducts = effectivePlanLimits(business?.plan, user).maxProducts ?? 25;
-  const totalProducts = await prisma.product.count({ where: { businessId } });
-  if (totalProducts >= maxProducts) {
-    redirect("/dashboard/products?error=Límite de productos alcanzado para tu plan");
+async function assertProductLimit(businessId: string) {
+  try {
+    await assertWithinPlanLimit(businessId, "products");
+  } catch (error) {
+    if (error instanceof PlanAccessError) {
+      redirect(`/dashboard/products?error=${error.message}`);
+    }
+    throw error;
   }
 }
 
 export async function createProductAction(formData: FormData) {
-  const { user, business } = await requireStoreAccess({ permission: "manage_products" });
-  await assertProductLimit(business.id, user);
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
+  await assertProductLimit(business.id);
 
   const parsed = productPayloadFromForm(formData);
   if (!parsed.success) redirect("/dashboard/products?error=Revisa los datos del producto");
@@ -100,6 +129,7 @@ export async function createProductAction(formData: FormData) {
         minStock: parsed.data.minStock,
         imageUrl: parsed.data.imageUrl,
         tags: parsed.data.tags,
+        attributesJson: parsed.data.productAttributes ? JSON.stringify(parsed.data.productAttributes) : null,
         status: parsed.data.status,
         featured: parsed.data.featured
       }
@@ -146,6 +176,7 @@ export async function updateProductAction(formData: FormData) {
         minStock: parsed.data.minStock,
         imageUrl: parsed.data.imageUrl,
         tags: parsed.data.tags,
+        attributesJson: parsed.data.productAttributes ? JSON.stringify(parsed.data.productAttributes) : null,
         status: parsed.data.status,
         featured: parsed.data.featured
       }
@@ -161,8 +192,8 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function duplicateProductAction(formData: FormData) {
-  const { user, business } = await requireStoreAccess({ permission: "manage_products" });
-  await assertProductLimit(business.id, user);
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
+  await assertProductLimit(business.id);
   const id = String(formData.get("id") || "");
 
   try {
@@ -186,6 +217,7 @@ export async function duplicateProductAction(formData: FormData) {
         minStock: product.minStock,
         imageUrl: product.imageUrl,
         tags: product.tags,
+        attributesJson: product.attributesJson,
         status: ProductStatus.DRAFT,
         featured: false
       }

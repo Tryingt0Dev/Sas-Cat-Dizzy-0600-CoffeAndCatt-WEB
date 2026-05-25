@@ -25,6 +25,8 @@ export type CatalogProduct = {
   whatsappClickCount: number;
   createdAt: Date;
   category: CatalogCategory | null;
+  attributesJson?: string | null;
+  attributes?: Record<string, string | number | boolean | null> | null;
 };
 
 export type ProductAiContext = {
@@ -58,6 +60,7 @@ export type CatalogBusiness = {
   whatsappNumber: string | null;
   businessType: string | null;
   address: string | null;
+  welcomeMessage?: string | null;
   catalogTemplate: string;
   primaryColor: string;
   secondaryColor: string;

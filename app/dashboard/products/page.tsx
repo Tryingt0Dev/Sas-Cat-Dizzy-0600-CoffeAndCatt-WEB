@@ -2,14 +2,21 @@ import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { EmptyState } from "@/components/EmptyState";
+import { HelpTooltip } from "@/components/HelpTooltip";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Input, Select, Textarea } from "@/components/Input";
+import { LearningLink } from "@/components/LearningLink";
 import { PageHeader } from "@/components/PageHeader";
 import { PendingSubmitButton } from "@/components/PendingSubmitButton";
+import { SectionGuide } from "@/components/SectionGuide";
 import { StatusAlert } from "@/components/StatusAlert";
+import { ProductAttributesFields } from "@/components/ProductAttributesFields";
 import { createProductAction, deleteProductAction, duplicateProductAction, updateProductAction } from "./actions";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
+import { parseStringRecord } from "@/lib/safe-json";
+import { getAttributeLabels } from "@/lib/store-types";
 
 type ProductSearchParams = {
   success?: string;
@@ -26,6 +33,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
   const category = String(resolvedSearchParams?.category ?? "").trim();
   const status = String(resolvedSearchParams?.status ?? "").trim();
   const validStatus = enumValues(ProductStatus).includes(status as ProductStatusValue) ? status : undefined;
+  const dynamicFields = getAttributeLabels(business.businessType);
 
   const [products, categories] = await Promise.all([
     prisma.product.findMany({
@@ -57,40 +65,112 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
         title="Productos"
         description="Crea, edita, duplica y controla stock con datos separados por tienda."
         actions={
-          <a href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
-            Ver catálogo
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+              Ver catálogo
+            </a>
+            <LearningLink href="/dashboard/learning#productos" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+              Guía de productos
+            </LearningLink>
+          </div>
         }
       />
       <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
+      <SectionGuide
+        eyebrow="Productos"
+        title="Publica productos sin confusión"
+        description="Completa los datos esenciales, mantén tu stock actualizado y usa la ayuda contextual para entender cada campo." 
+        help="Los productos con stock bajo te llegarán al dashboard y puedes crear un producto activo para comenzar a vender." 
+        actions={<LearningLink href="/dashboard/learning#productos">Ver guía</LearningLink>}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Card>
-          <h2 className="text-xl font-black">Nuevo producto</h2>
-          <form action={createProductAction} className="mt-5 space-y-3">
-            <Input name="name" placeholder="Nombre del producto" required />
-            <Input name="sku" placeholder="SKU opcional" />
-            <Select name="categoryId" defaultValue="">
-              <option value="">Sin categoría</option>
-              {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </Select>
-            <Textarea name="description" placeholder="Descripción" rows={3} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input name="price" type="number" min={0} placeholder="Precio" required />
-              <Input name="compareAtPrice" type="number" min={0} placeholder="Precio antes" />
-              <Input name="discountPercent" type="number" placeholder="% descuento" min={0} max={100} />
-              <Input name="stock" type="number" min={0} placeholder="Stock" />
-              <Input name="costPrice" type="number" min={0} placeholder="Costo" />
-              <Input name="minStock" type="number" min={0} placeholder="Stock mínimo" />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">Nuevo producto</h2>
+              <p className="mt-1 text-sm text-gray-500">Crea un producto activo con precio, stock y una imagen atractiva para tu catálogo público.</p>
             </div>
-            <ImageDropzone name="imageUrl" businessId={business.id} label="Imagen principal del producto" />
-            <Input name="tags" placeholder="Tags: ropa, rosa, oferta" />
-            <Select name="status" defaultValue={ProductStatus.ACTIVE}>
-              <option value={ProductStatus.ACTIVE}>Activo</option>
-              <option value={ProductStatus.DRAFT}>Borrador</option>
-              <option value={ProductStatus.ARCHIVED}>Archivado</option>
-            </Select>
-            <label className="flex items-center gap-2 text-sm font-semibold"><input name="featured" type="checkbox" /> Destacado</label>
+            <HelpTooltip description="Completa el nombre, precio, stock y al menos una imagen para publicar un producto visible en tu catálogo." />
+          </div>
+          <form action={createProductAction} className="mt-5 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Información básica</h3>
+              <label className="block text-sm font-semibold text-gray-900">
+                Nombre del producto
+                <span className="mt-1 block text-xs text-gray-500">Ej: Polera blanca manga corta.</span>
+                <Input name="name" placeholder="Nombre del producto" required />
+              </label>
+              <label className="block text-sm font-semibold text-gray-900">
+                SKU opcional
+                <span className="mt-1 block text-xs text-gray-500">Identificador interno para tu inventario.</span>
+                <Input name="sku" placeholder="SKU opcional" />
+              </label>
+              <label className="block text-sm font-semibold text-gray-900">
+                Categoría
+                <span className="mt-1 block text-xs text-gray-500">Clasifica el producto para que los clientes encuentren más fácil.</span>
+                <Select name="categoryId" defaultValue="">
+                  <option value="">Sin categoría</option>
+                  {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </Select>
+              </label>
+              <label className="block text-sm font-semibold text-gray-900">
+                Descripción
+                <span className="mt-1 block text-xs text-gray-500">Describe el producto y sus beneficios en pocas palabras.</span>
+                <Textarea name="description" placeholder="Descripción" rows={3} />
+              </label>
+            </div>
+            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Precio y stock</h3>
+              <div className="grid gap-3 lg:grid-cols-3">
+                <label className="block text-sm font-semibold text-gray-900">
+                  Precio
+                  <span className="mt-1 block text-xs text-gray-500">Precio final que verá el cliente.</span>
+                  <Input name="price" type="number" min={0} placeholder="Precio" required />
+                </label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Precio antes
+                  <span className="mt-1 block text-xs text-gray-500">Opcional. Úsalo para mostrar descuento.</span>
+                  <Input name="compareAtPrice" type="number" min={0} placeholder="Precio antes" />
+                </label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  % Descuento
+                  <span className="mt-1 block text-xs text-gray-500">Valor entre 0 y 100 para destacar ofertas.</span>
+                  <Input name="discountPercent" type="number" placeholder="% descuento" min={0} max={100} />
+                </label>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-3">
+                <label className="block text-sm font-semibold text-gray-900">
+                  Stock
+                  <span className="mt-1 block text-xs text-gray-500">Cantidad real disponible para la venta.</span>
+                  <Input name="stock" type="number" min={0} placeholder="Stock" />
+                </label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Costo
+                  <span className="mt-1 block text-xs text-gray-500">Costo interno del producto para tu control.</span>
+                  <Input name="costPrice" type="number" min={0} placeholder="Costo" />
+                </label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Stock mínimo
+                  <span className="mt-1 block text-xs text-gray-500">Recibirás alerta cuando el stock sea bajo.</span>
+                  <Input name="minStock" type="number" min={0} placeholder="Stock mínimo" />
+                </label>
+              </div>
+            </div>
+            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Imágenes, ficha y publicación</h3>
+              <ImageDropzone name="imageUrl" businessId={business.id} label="Imagen principal del producto" />
+              <label className="block text-sm font-semibold text-gray-900">
+                Tags
+                <span className="mt-1 block text-xs text-gray-500">Ej: ropa, oferta, verano. Se usan para búsquedas internas y filtros.</span>
+                <Input name="tags" placeholder="Tags: ropa, rosa, oferta" />
+              </label>
+              <ProductAttributesFields fields={dynamicFields} />
+              <label className="flex items-center gap-2 text-sm font-semibold">
+                <input name="featured" type="checkbox" />
+                Destacado
+              </label>
+            </div>
             <PendingSubmitButton className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
               Crear producto
             </PendingSubmitButton>
@@ -124,6 +204,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
 
           {products.map((product) => {
             const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
+            const currentProductAttributes = parseStringRecord(product.attributesJson);
             return (
               <Card key={product.id} className="grid gap-4 lg:grid-cols-[120px_1fr]">
                 <img src={product.imageUrl || "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=800&auto=format&fit=crop"} alt={product.name} className="h-28 w-28 rounded-2xl object-cover" />
@@ -165,6 +246,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
                         </Select>
                       </div>
                       <Textarea name="description" defaultValue={product.description ?? ""} rows={3} />
+                      <ProductAttributesFields fields={dynamicFields} currentAttributes={currentProductAttributes} />
                       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
                         <Input name="price" type="number" min={0} defaultValue={product.price} />
                         <Input name="compareAtPrice" type="number" min={0} defaultValue={product.compareAtPrice ?? ""} />
@@ -200,7 +282,13 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
               </Card>
             );
           })}
-          {products.length === 0 && <Card><p className="text-gray-500">No hay productos con esos filtros.</p></Card>}
+          {products.length === 0 && (
+            <EmptyState
+              title="No hay productos aún"
+              description="Agrega tu primer producto para empezar a mostrar tu catálogo público y recibir consultas." 
+              action={<LearningLink href="/dashboard/learning#productos">Aprender a crear un producto</LearningLink>}
+            />
+          )}
         </div>
       </div>
     </div>

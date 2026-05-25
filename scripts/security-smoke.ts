@@ -53,8 +53,8 @@ async function main() {
 
   process.env.ADMIN_BOOTSTRAP_SECRET = "x".repeat(32);
   assert(
-    resolvePublicRegistrationRole({ adminBootstrapSecret: process.env.ADMIN_BOOTSTRAP_SECRET }) === "PLATFORM_ADMIN",
-    "Valid ADMIN_BOOTSTRAP_SECRET must create PLATFORM_ADMIN"
+    resolvePublicRegistrationRole({ adminBootstrapSecret: process.env.ADMIN_BOOTSTRAP_SECRET }) === "SUPER_ADMIN",
+    "Valid ADMIN_BOOTSTRAP_SECRET must create SUPER_ADMIN"
   );
   assert(
     effectivePlanLimits(null, { email: `${runId}-admin@example.com`, role: "PLATFORM_ADMIN" }).maxProducts === 999999,

@@ -2,20 +2,20 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
+import { HelpTooltip } from "@/components/HelpTooltip";
+import { LearningLink } from "@/components/LearningLink";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { PageHeader } from "@/components/PageHeader";
+import { SectionGuide } from "@/components/SectionGuide";
 import { StoreShareCard } from "@/components/StoreShareCard";
 import { formatCLP } from "@/lib/format";
 import { ConversationStatus, CustomerStatus, OrderStatus, ProductStatus, QuoteStatus } from "@/lib/enums";
+import { parseJsonRecord } from "@/lib/safe-json";
 
 function parseIntent(metadata: string | null) {
-  if (!metadata) return null;
-  try {
-    const parsed = JSON.parse(metadata) as { intent?: string };
-    return parsed.intent ?? null;
-  } catch {
-    return null;
-  }
+  const parsed = parseJsonRecord(metadata);
+  const intent = parsed?.intent;
+  return typeof intent === "string" ? intent : null;
 }
 
 export default async function DashboardPage() {
@@ -82,14 +82,14 @@ export default async function DashboardPage() {
   const purchaseIntentRate = aiMessages.length > 0 ? Math.round((purchaseIntentCount / aiMessages.length) * 100) : 0;
 
   const metricCards = [
-    ["Productos activos", activeProducts],
-    ["Leads nuevos", newLeads],
-    ["Conversaciones abiertas", openConversations],
-    ["Cotizaciones enviadas", sentQuotes],
-    ["Pedidos pendientes", pendingOrders],
-    ["Stock bajo", lowStockProducts.length],
-    ["Vistas de productos", totalProductViews],
-    ["Clicks WhatsApp", totalWhatsappClicks]
+    { label: "Productos activos", value: activeProducts, help: "Cantidad de productos visibles actualmente en tu catálogo público." },
+    { label: "Leads nuevos", value: newLeads, help: "Clientes nuevos que entraron al sistema y esperan seguimiento." },
+    { label: "Conversaciones abiertas", value: openConversations, help: "Chats pendientes con clientes que aún no han sido respondidos o cerrados." },
+    { label: "Cotizaciones enviadas", value: sentQuotes, help: "Presupuestos enviados a clientes para avanzar la venta." },
+    { label: "Pedidos pendientes", value: pendingOrders, help: "Órdenes que aún no han sido procesadas o despachadas." },
+    { label: "Stock bajo", value: lowStockProducts.length, help: "Productos con stock cercano al mínimo definido. Revisa para reponerlos." },
+    { label: "Vistas de productos", value: totalProductViews, help: "Número de veces que tus productos han sido vistos en el catálogo público." },
+    { label: "Clicks WhatsApp", value: totalWhatsappClicks, help: "Cantidad de clics al botón de WhatsApp desde tus productos." }
   ];
   const onboardingItems = [
     {
@@ -158,8 +158,19 @@ export default async function DashboardPage() {
             <Link href="/dashboard/settings" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white shadow-sm">
               Personalizar
             </Link>
+            <LearningLink href="/dashboard/learning" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+              Ver guía
+            </LearningLink>
           </>
         }
+      />
+
+      <SectionGuide
+        eyebrow="Bienvenida"
+        title="Tu panel operativo está listo"
+        description="Revisa el estado de tu tienda, comprueba métricas clave y sigue los pasos recomendados para vender más rápido." 
+        help="El panel muestra qué está funcionando y qué requiere tu atención. Usa la guía cuando necesites contexto extra." 
+        actions={<LearningLink href="/dashboard/learning#primeros-pasos">Ver primeros pasos</LearningLink>}
       />
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -169,7 +180,12 @@ export default async function DashboardPage() {
               <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Acciones rápidas</p>
               <h2 className="mt-1 text-xl font-black">Lo más usado para operar la tienda</h2>
             </div>
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.publicSlug}</span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.publicSlug}</span>
+              <LearningLink href="/dashboard/learning#primeros-pasos" className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-700 shadow-sm">
+                Guía de inicio
+              </LearningLink>
+            </div>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {quickActions.map((action) => (
@@ -208,10 +224,13 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metricCards.map(([label, value]) => (
-          <Card key={label}>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="mt-2 text-3xl font-black">{value}</p>
+        {metricCards.map((metric) => (
+          <Card key={metric.label}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-gray-500">{metric.label}</p>
+              <HelpTooltip description={metric.help} />
+            </div>
+            <p className="mt-2 text-3xl font-black">{metric.value}</p>
           </Card>
         ))}
         <Card className="xl:col-span-2">
