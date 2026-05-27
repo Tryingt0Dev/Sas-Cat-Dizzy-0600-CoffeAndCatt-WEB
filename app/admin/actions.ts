@@ -8,7 +8,7 @@ import { GLOBAL_ADMIN_ROLES, requirePlatformAdmin } from "@/lib/auth";
 import { UserRole } from "@/lib/enums";
 import { STORE_ROLE_OPTIONS, USER_GLOBAL_ROLE_OPTIONS, canAssignGlobalRole, isSuperAdmin, normalizeStoreRole } from "@/lib/auth/permissions";
 import { getPlanByType, normalizePlanSlug, normalizeSubscriptionStatus, PLAN_SLUGS, SUBSCRIPTION_STATUSES } from "@/lib/plans";
-import { PlanAccessError, canInviteMember } from "@/services/plan-guard";
+import { PlanAccessError, requireMaxUsers } from "@/services/plan-guard";
 import { writeAuditLog } from "@/services/audit-log";
 
 const businessStatusSchema = z.object({
@@ -245,7 +245,7 @@ export async function addStoreMemberAction(formData: FormData) {
 
   if (!existingMembership) {
     try {
-      await canInviteMember(business.id);
+      await requireMaxUsers(business.id);
     } catch (error) {
       if (error instanceof PlanAccessError) adminRedirect(`/admin/stores/${business.id}`, error.message, "error");
       throw error;
@@ -339,4 +339,48 @@ export async function removeStoreMemberAction(formData: FormData) {
 
   revalidatePath(`/admin/stores/${membership.businessId}`);
   adminRedirect(`/admin/stores/${membership.businessId}`, "Miembro removido");
+}
+
+const domainStartSchema = z.object({ businessId: z.string().trim().min(1), domain: z.string().trim().min(3) });
+
+export async function startDomainVerificationAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const parsed = domainStartSchema.safeParse({ businessId: formData.get('businessId'), domain: formData.get('domain') });
+  if (!parsed.success) adminRedirect('/admin', 'Datos invalidos', 'error');
+
+  const { businessId, domain } = parsed.data;
+  const token = `myapp-verify-${Math.random().toString(36).slice(2, 10)}`;
+
+  await prisma.business.update({ where: { id: businessId }, data: { customDomain: domain, customDomainVerified: false } });
+  await prisma.platformSetting.upsert({ where: { key: `domain-verify-${businessId}` }, update: { value: token }, create: { key: `domain-verify-${businessId}`, value: token } });
+
+  revalidatePath(`/admin/stores/${businessId}`);
+  adminRedirect(`/admin/stores/${businessId}`, `Token creado. Instruccion: crear TXT _myapp-verify.${domain}`);
+}
+
+const domainVerifySchema = z.object({ businessId: z.string().trim().min(1) });
+
+export async function verifyDomainAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const parsed = domainVerifySchema.safeParse({ businessId: formData.get('businessId') });
+  if (!parsed.success) adminRedirect('/admin', 'Datos invalidos', 'error');
+  const { businessId } = parsed.data;
+
+  const setting = await prisma.platformSetting.findUnique({ where: { key: `domain-verify-${businessId}` } });
+  if (!setting) adminRedirect(`/admin/stores/${businessId}`, 'No existe token de verificacion', 'error');
+
+  // Attempt DNS TXT lookup (may fail in local env)
+  try {
+    const dns = await import('node:dns');
+    const txts = await dns.promises.resolveTxt(`_myapp-verify.${(await prisma.business.findUnique({ where: { id: businessId }, select: { customDomain: true } }))?.customDomain}`);
+    const flat = txts.flat().map(String);
+    if (flat.includes(setting.value)) {
+      await prisma.business.update({ where: { id: businessId }, data: { customDomainVerified: true } });
+      revalidatePath(`/admin/stores/${businessId}`);
+      adminRedirect(`/admin/stores/${businessId}`, 'Dominio verificado correctamente');
+    }
+    adminRedirect(`/admin/stores/${businessId}`, `Token no encontrado en DNS: ${flat.join(', ')}`, 'error');
+  } catch (err) {
+    adminRedirect(`/admin/stores/${businessId}`, `Error DNS: ${String(err)}`, 'error');
+  }
 }

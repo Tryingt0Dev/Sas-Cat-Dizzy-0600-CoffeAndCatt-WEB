@@ -95,7 +95,7 @@ export async function createSession(userId: string) {
   const ck = await cookies();
   ck.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     expires: expiresAt
@@ -159,6 +159,12 @@ export async function requireAdminPanelUser(req?: Request) {
   const user = await requireUser(req);
   if (!hasAdminPanelAccess(user)) redirect("/dashboard");
   return user;
+}
+
+export function isPlatformOwner(user: { email: string } | null | undefined) {
+  if (!user) return false;
+  const configured = configuredPlatformOwnerEmails();
+  return configured.includes(user.email.toLowerCase());
 }
 
 export async function requireDeveloperOrAdmin(req?: Request) {
