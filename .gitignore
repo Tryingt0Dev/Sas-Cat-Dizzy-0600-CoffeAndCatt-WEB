@@ -32,3 +32,8 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Local Prisma backups
+prisma/migrations.sqlite.backup/
+prisma/schema.sqlite.backup.prisma
+prisma/schema_postgres.prisma
