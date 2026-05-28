@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, hasPlatformAccess, SELECTED_BUSINESS_COOKIE } from "@/lib/auth";
 import { StoreRole } from "@/lib/enums";
-import { normalizeStoreRole, storeRoleCan } from "@/lib/auth/permissions";
+import { businessRoleHasPermission, normalizeStoreRole, type BusinessPermission } from "@/lib/auth/permissions";
 import { effectivePlanLimits } from "@/services/plan-guard";
 
 export class AuthenticationError extends Error {
@@ -24,16 +24,7 @@ export class StoreSelectionRequiredError extends Error {
   }
 }
 
-export type StorePermission =
-  | "view_dashboard"
-  | "manage_products"
-  | "manage_categories"
-  | "manage_customers"
-  | "manage_conversations"
-  | "manage_quotes_orders"
-  | "manage_settings"
-  | "manage_uploads"
-  | "use_ai";
+export type StorePermission = BusinessPermission;
 
 type StoreAccessOptions = {
   businessId?: string;
@@ -41,22 +32,11 @@ type StoreAccessOptions = {
   permission?: StorePermission;
   activeOnly?: boolean;
   request?: Request;
-};
-
-const permissionMinimumRole: Record<StorePermission, StoreRole> = {
-  view_dashboard: StoreRole.VIEWER,
-  manage_products: StoreRole.STORE_MANAGER,
-  manage_categories: StoreRole.STORE_MANAGER,
-  manage_customers: StoreRole.STORE_STAFF,
-  manage_conversations: StoreRole.STORE_STAFF,
-  manage_quotes_orders: StoreRole.STORE_ADMIN,
-  manage_settings: StoreRole.STORE_ADMIN,
-  manage_uploads: StoreRole.STORE_MANAGER,
-  use_ai: StoreRole.STORE_STAFF
+  requireExplicitBusiness?: boolean;
 };
 
 function roleCan(role: StoreRole, permission: StorePermission) {
-  return storeRoleCan(role, permissionMinimumRole[permission]);
+  return businessRoleHasPermission(role, permission);
 }
 
 function getCookieFromRequest(req: Request, name: string) {
@@ -139,7 +119,8 @@ export async function getStoreAccess(options?: StoreAccessOptions) {
   const activeOnly = options?.activeOnly ?? true;
   const explicitBusinessId = options?.businessId?.trim() || null;
   const explicitBusinessSlug = options?.businessSlug?.trim() || null;
-  const cookieBusinessId = await selectedBusinessIdFromCookie(options?.request);
+  const requireExplicitBusiness = options?.requireExplicitBusiness === true;
+  const cookieBusinessId = requireExplicitBusiness ? null : await selectedBusinessIdFromCookie(options?.request);
   const explicitSlugBusinessId = explicitBusinessSlug ? await businessIdFromSlug(explicitBusinessSlug, activeOnly) : null;
   if (explicitBusinessSlug && !explicitSlugBusinessId) {
     throw new AuthorizationError("Tienda no encontrada");
@@ -148,6 +129,10 @@ export async function getStoreAccess(options?: StoreAccessOptions) {
     ?? explicitSlugBusinessId
     ?? cookieBusinessId
     ?? null;
+
+  if (!businessId && requireExplicitBusiness) {
+    throw new AuthorizationError("Tienda obligatoria");
+  }
 
   let business = businessId
     ? await prisma.business.findFirst({
@@ -205,9 +190,58 @@ export async function requireStoreAccess(options?: StoreAccessOptions) {
   }
 }
 
+export async function requireBusinessAccess(businessId: string, request?: Request) {
+  return getStoreAccess({
+    request,
+    businessId,
+    permission: "view_dashboard",
+    requireExplicitBusiness: true
+  });
+}
+
+export async function requireBusinessPermission(businessId: string, permission: StorePermission, request?: Request) {
+  return getStoreAccess({
+    request,
+    businessId,
+    permission,
+    requireExplicitBusiness: true
+  });
+}
+
+export async function requireBusinessRole(businessId: string, roles: string[], request?: Request) {
+  const access = await getStoreAccess({
+    request,
+    businessId,
+    permission: "view_dashboard",
+    requireExplicitBusiness: true
+  });
+
+  if (access.isPlatformAdmin) return access;
+
+  const allowedRoles = new Set(roles.map((role) => normalizeStoreRole(role)));
+  const allowed = allowedRoles.has(access.storeRole);
+  if (!allowed) {
+    throw new AuthorizationError("No tienes permisos para esta operacion");
+  }
+
+  return access;
+}
+
 export function assertCanManageProducts(access: Awaited<ReturnType<typeof requireStoreAccess>>) {
   if (!access.isPlatformAdmin && !roleCan(access.storeRole, "manage_products")) {
     throw new AuthorizationError("No tienes permisos para administrar productos");
+  }
+}
+
+export function assertCanManageUploads(access: Awaited<ReturnType<typeof requireStoreAccess>>) {
+  if (!access.isPlatformAdmin && !roleCan(access.storeRole, "manage_uploads")) {
+    throw new AuthorizationError("No tienes permisos para administrar imagenes");
+  }
+}
+
+export function assertCanManageUsers(access: Awaited<ReturnType<typeof requireStoreAccess>>) {
+  if (!access.isPlatformAdmin && !roleCan(access.storeRole, "manage_users")) {
+    throw new AuthorizationError("No tienes permisos para administrar usuarios de la tienda");
   }
 }
 

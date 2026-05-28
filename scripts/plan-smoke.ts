@@ -85,7 +85,10 @@ async function main() {
   const business = getPlanEntitlements("business");
   assert(normal.maxProducts === 50, "Normal debe permitir 50 productos");
   assert(premium.maxProducts === 500, "Premium debe permitir 500 productos");
-  assert(business.maxProducts === "unlimited", "Business debe ser ilimitado en productos");
+  assert(business.maxProducts === 5000, "Business debe permitir 5000 productos");
+  assert(normal.aiRequestsPerMinute === 10, "Normal debe permitir 10 solicitudes IA por minuto");
+  assert(premium.aiRequestsPerMinute === 30, "Premium debe permitir 30 solicitudes IA por minuto");
+  assert(business.aiRequestsPerMinute === 60, "Business debe permitir 60 solicitudes IA por minuto");
   assert(canUseFeature("normal", FEATURE_KEYS.saasThemeChange), "Tema SaaS debe estar disponible en Normal");
   assert(canUseFeature("premium", FEATURE_KEYS.catalogPaletteChange), "Paletas deben estar disponibles en Premium");
   assert(canUseFeature("business", FEATURE_KEYS.catalogPaletteChange), "Paletas deben estar disponibles en Business");
@@ -97,7 +100,8 @@ async function main() {
   assert(!isWithinPlanLimit("normal", "maxProducts", 50), "Normal debe bloquear producto 51");
   assert(isWithinPlanLimit("premium", "maxProducts", 499), "Premium debe aceptar producto 500");
   assert(!isWithinPlanLimit("premium", "maxProducts", 500), "Premium debe bloquear producto 501");
-  assert(isWithinPlanLimit("business", "maxProducts", 100000), "Business no debe bloquear productos");
+  assert(isWithinPlanLimit("business", "maxProducts", 4999), "Business debe aceptar producto 5000");
+  assert(!isWithinPlanLimit("business", "maxProducts", 5000), "Business debe bloquear producto 5001");
 
   const normalStore = await createStore("normal");
   const premiumStore = await createStore("premium");
@@ -113,7 +117,11 @@ async function main() {
     () => assertWithinPlanLimit(premiumStore.business.id, "products", 500),
     "Servidor debe bloquear creacion de producto sobre limite premium"
   );
-  await assertWithinPlanLimit(businessStore.business.id, "products", 100000);
+  await assertWithinPlanLimit(businessStore.business.id, "products", 4999);
+  await expectPlanLimitError(
+    () => assertWithinPlanLimit(businessStore.business.id, "products", 5000),
+    "Servidor debe bloquear creacion de producto sobre limite business"
+  );
 
   await expectPlanLimitError(
     () => requireFeature(normalStore.business.id, FEATURE_KEYS.automationsUse),

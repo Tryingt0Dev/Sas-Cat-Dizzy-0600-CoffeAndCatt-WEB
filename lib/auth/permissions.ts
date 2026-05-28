@@ -6,13 +6,33 @@ export type UserAccessIdentity = {
   role: string;
 };
 
+export type BusinessPermission =
+  | "view_dashboard"
+  | "manage_business"
+  | "manage_users"
+  | "manage_products"
+  | "manage_categories"
+  | "manage_customers"
+  | "manage_conversations"
+  | "manage_quotes_orders"
+  | "manage_settings"
+  | "manage_uploads"
+  | "use_ai";
+
 export const SUPER_ADMIN_ROLES = new Set<string>([UserRole.SUPER_ADMIN]);
 
-export const PLATFORM_ADMIN_ROLES = new Set<string>([
-  UserRole.SUPER_ADMIN,
+// Formal SaaS global roles plus legacy aliases kept for backward compatibility.
+export const FORMAL_GLOBAL_ROLES = new Set<string>([UserRole.SUPER_ADMIN, UserRole.DEVELOPER, UserRole.SUPPORT]);
+
+export const LEGACY_GLOBAL_ADMIN_ROLES = new Set<string>([
   UserRole.PLATFORM_ADMIN,
   UserRole.ADMIN_GLOBAL,
   UserRole.OWNER
+]);
+
+export const PLATFORM_ADMIN_ROLES = new Set<string>([
+  UserRole.SUPER_ADMIN,
+  ...Array.from(LEGACY_GLOBAL_ADMIN_ROLES)
 ]);
 
 export const ADMIN_PANEL_ROLES = new Set<string>([
@@ -40,6 +60,20 @@ export const STORE_ROLE_OPTIONS = [
   StoreRole.STORE_STAFF,
   StoreRole.VIEWER
 ] as const;
+
+export const BUSINESS_PERMISSION_MINIMUM_ROLE: Record<BusinessPermission, StoreRole> = {
+  view_dashboard: StoreRole.VIEWER,
+  manage_business: StoreRole.STORE_OWNER,
+  manage_users: StoreRole.STORE_OWNER,
+  manage_products: StoreRole.STORE_MANAGER,
+  manage_categories: StoreRole.STORE_MANAGER,
+  manage_customers: StoreRole.STORE_STAFF,
+  manage_conversations: StoreRole.STORE_STAFF,
+  manage_quotes_orders: StoreRole.STORE_ADMIN,
+  manage_settings: StoreRole.STORE_ADMIN,
+  manage_uploads: StoreRole.STORE_MANAGER,
+  use_ai: StoreRole.STORE_STAFF
+};
 
 const globalRoleRank: Record<string, number> = {
   [UserRole.USER]: 1,
@@ -129,4 +163,32 @@ export function storeRoleLevel(role: string | null | undefined) {
 
 export function storeRoleCan(role: string | null | undefined, minimumRole: string) {
   return storeRoleLevel(role) >= storeRoleLevel(minimumRole);
+}
+
+export function businessRoleHasPermission(role: string | null | undefined, permission: BusinessPermission) {
+  return storeRoleCan(role, BUSINESS_PERMISSION_MINIMUM_ROLE[permission]);
+}
+
+export function canViewDashboard(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "view_dashboard");
+}
+
+export function canManageBusiness(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "manage_business");
+}
+
+export function canManageUsers(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "manage_users");
+}
+
+export function canManageProducts(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "manage_products");
+}
+
+export function canManageUploads(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "manage_uploads");
+}
+
+export function canManageSettings(role: string | null | undefined) {
+  return businessRoleHasPermission(role, "manage_settings");
 }

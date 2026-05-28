@@ -2,14 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
-import { HelpTooltip } from "@/components/HelpTooltip";
 import { LearningLink } from "@/components/LearningLink";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { PageHeader } from "@/components/PageHeader";
-import { SectionGuide } from "@/components/SectionGuide";
-import { StoreShareCard } from "@/components/StoreShareCard";
-import { formatCLP } from "@/lib/format";
-import { ConversationStatus, CustomerStatus, OrderStatus, ProductStatus, QuoteStatus } from "@/lib/enums";
+import { QuickActions } from "@/components/QuickActions";
+import { ConversationStatus, CustomerStatus, OrderStatus, ProductStatus } from "@/lib/enums";
 import { parseJsonRecord } from "@/lib/safe-json";
 
 function parseIntent(metadata: string | null) {
@@ -24,45 +21,34 @@ export default async function DashboardPage() {
     activeProducts,
     newLeads,
     openConversations,
-    sentQuotes,
     pendingOrders,
     categoryCount,
-    featuredProductCount,
     products,
     topConsultedProducts,
-    topViewedProducts,
-    topWhatsappProducts,
-    latestConversations,
     aiMessages
   ] = await Promise.all([
     prisma.product.count({ where: { businessId: business.id, status: ProductStatus.ACTIVE } }),
     prisma.customer.count({ where: { businessId: business.id, status: CustomerStatus.NEW } }),
     prisma.conversation.count({ where: { businessId: business.id, status: { in: [ConversationStatus.OPEN, ConversationStatus.WAITING_HUMAN] } } }),
-    prisma.quote.count({ where: { businessId: business.id, status: QuoteStatus.SENT } }),
     prisma.order.count({ where: { businessId: business.id, status: OrderStatus.PENDING } }),
     prisma.category.count({ where: { businessId: business.id } }),
-    prisma.product.count({ where: { businessId: business.id, featured: true } }),
-    prisma.product.findMany({ where: { businessId: business.id } }),
+    prisma.product.findMany({
+      where: { businessId: business.id },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        price: true,
+        stock: true,
+        minStock: true,
+        productViewCount: true,
+        whatsappClickCount: true
+      }
+    }),
     prisma.product.findMany({
       where: { businessId: business.id, aiConsultCount: { gt: 0 } },
       orderBy: { aiConsultCount: "desc" },
       take: 5
-    }),
-    prisma.product.findMany({
-      where: { businessId: business.id, productViewCount: { gt: 0 } },
-      orderBy: { productViewCount: "desc" },
-      take: 5
-    }),
-    prisma.product.findMany({
-      where: { businessId: business.id, whatsappClickCount: { gt: 0 } },
-      orderBy: { whatsappClickCount: "desc" },
-      take: 5
-    }),
-    prisma.conversation.findMany({
-      where: { businessId: business.id },
-      include: { customer: true, messages: { orderBy: { createdAt: "desc" }, take: 1 } },
-      orderBy: { updatedAt: "desc" },
-      take: 6
     }),
     prisma.message.findMany({
       where: { conversation: { businessId: business.id }, senderType: "AI" },
@@ -71,7 +57,7 @@ export default async function DashboardPage() {
     })
   ]);
 
-  const stockValue = products.reduce((acc, product) => acc + product.price * product.stock, 0);
+  const totalProducts = products.length;
   const totalProductViews = products.reduce((acc, product) => acc + product.productViewCount, 0);
   const totalWhatsappClicks = products.reduce((acc, product) => acc + product.whatsappClickCount, 0);
   const lowStockProducts = products
@@ -82,51 +68,39 @@ export default async function DashboardPage() {
   const purchaseIntentRate = aiMessages.length > 0 ? Math.round((purchaseIntentCount / aiMessages.length) * 100) : 0;
 
   const metricCards = [
-    { label: "Productos activos", value: activeProducts, help: "Cantidad de productos visibles actualmente en tu catálogo público." },
-    { label: "Leads nuevos", value: newLeads, help: "Clientes nuevos que entraron al sistema y esperan seguimiento." },
-    { label: "Conversaciones abiertas", value: openConversations, help: "Chats pendientes con clientes que aún no han sido respondidos o cerrados." },
-    { label: "Cotizaciones enviadas", value: sentQuotes, help: "Presupuestos enviados a clientes para avanzar la venta." },
-    { label: "Pedidos pendientes", value: pendingOrders, help: "Órdenes que aún no han sido procesadas o despachadas." },
-    { label: "Stock bajo", value: lowStockProducts.length, help: "Productos con stock cercano al mínimo definido. Revisa para reponerlos." },
-    { label: "Vistas de productos", value: totalProductViews, help: "Número de veces que tus productos han sido vistos en el catálogo público." },
-    { label: "Clicks WhatsApp", value: totalWhatsappClicks, help: "Cantidad de clics al botón de WhatsApp desde tus productos." }
+    { label: "Productos", value: totalProducts },
+    { label: "Categorías", value: categoryCount },
+    { label: "Activos", value: activeProducts },
+    { label: "Stock bajo", value: lowStockProducts.length },
+    { label: "Leads nuevos", value: newLeads },
+    { label: "Chats abiertos", value: openConversations },
+    { label: "Pedidos pendientes", value: pendingOrders }
   ];
+  const storeIsEmpty = totalProducts === 0 && categoryCount === 0;
   const onboardingItems = [
     {
-      label: "Configura WhatsApp",
-      description: "Activa el canal principal de cierre comercial.",
-      href: "/dashboard/settings",
-      done: Boolean(business.whatsappNumber)
-    },
-    {
-      label: "Sube logo o banner",
-      description: "Haz que el catalogo se sienta propio y confiable.",
-      href: "/dashboard/settings",
-      done: Boolean(business.logoUrl || business.bannerUrl)
-    },
-    {
-      label: "Crea productos",
-      description: "Publica al menos un producto activo.",
-      href: "/dashboard/products",
-      done: activeProducts > 0
-    },
-    {
-      label: "Crea categorias",
-      description: "Ayuda al cliente a encontrar rapido lo que busca.",
+      label: "Crear primera categoría",
+      description: "Organiza tu catálogo con categorías.",
       href: "/dashboard/categories",
       done: categoryCount > 0
     },
     {
-      label: "Destaca un producto",
-      description: "Muestra una oferta o producto recomendado primero.",
-      href: "/dashboard/products",
-      done: featuredProductCount > 0
+      label: "Crear primer producto",
+      description: "Crea tu primer producto para comenzar a vender.",
+      href: "/dashboard/products?create=1",
+      done: totalProducts > 0
     },
     {
-      label: "Prueba el vendedor IA",
-      description: "Envia una consulta desde el catalogo publico.",
+      label: "Personalizar apariencia",
+      description: "Ajusta colores, logo y mensaje público.",
+      href: "/dashboard/design",
+      done: Boolean(business.logoUrl || business.bannerUrl || business.dashboardTitle)
+    },
+    {
+      label: "Ver catálogo público",
+      description: "Revisa cómo lo verá tu cliente.",
       href: `/store/${business.publicSlug}`,
-      done: aiMessages.length > 0 || openConversations > 0
+      done: activeProducts > 0
     }
   ];
   const dashboardTitle = business.dashboardTitle || `Gestión de ${business.name}`;
@@ -138,79 +112,72 @@ export default async function DashboardPage() {
     { label: "IA", done: aiMessages.length > 0, hint: aiMessages.length > 0 ? "Ya recibió consultas" : "Prueba el vendedor IA" }
   ];
   const quickActions = [
-    { label: "Nuevo producto", description: "Agrega inventario con foto, precio y stock.", href: "/dashboard/products" },
-    { label: "Ver catálogo", description: "Revisa la experiencia pública del cliente.", href: `/store/${business.publicSlug}`, external: true },
-    { label: "Personalizar panel", description: "Cambia nombre interno, colores, logo e IA.", href: "/dashboard/settings" },
-    { label: "Revisar leads", description: "Atiende clientes nuevos y conversaciones abiertas.", href: "/dashboard/customers" }
+    { id: "create-product", label: "Crear producto", href: "/dashboard/products?create=1", variant: "primary" as const },
+    { id: "create-category", label: "Crear categoría", href: "/dashboard/categories" },
+    { id: "catalog", label: "Ver catálogo", href: `/store/${business.publicSlug}`, external: true },
+    { id: "design", label: "Personalizar tienda", href: "/dashboard/design" },
+    { id: "ai", label: "Consultar IA", href: `/store/${business.publicSlug}#store-ai-chat`, external: true },
+    { id: "discount", label: "Agregar descuento", href: "/dashboard/products" }
   ];
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         eyebrow="Dashboard"
         title={dashboardTitle}
         description={dashboardDescription}
         actions={
           <>
-            <Link href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            <Link
+              href={`/store/${business.publicSlug}`}
+              target="_blank"
+              className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
+            >
               Ver catálogo
             </Link>
-            <Link href="/dashboard/settings" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white shadow-sm">
+            <Link
+              href="/dashboard/design"
+              className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-black text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
+            >
               Personalizar
             </Link>
-            <LearningLink href="/dashboard/learning" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            <LearningLink
+              href="/dashboard/learning"
+              className="rounded-xl bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
+            >
               Ver guía
             </LearningLink>
           </>
         }
       />
 
-      <SectionGuide
-        eyebrow="Bienvenida"
-        title="Tu panel operativo está listo"
-        description="Revisa el estado de tu tienda, comprueba métricas clave y sigue los pasos recomendados para vender más rápido." 
-        help="El panel muestra qué está funcionando y qué requiere tu atención. Usa la guía cuando necesites contexto extra." 
-        actions={<LearningLink href="/dashboard/learning#primeros-pasos">Ver primeros pasos</LearningLink>}
-      />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        {metricCards.map((metric) => (
+          <Card key={metric.label} className="p-3">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">{metric.label}</p>
+            <p className="mt-1 text-xl font-black text-[var(--app-text)]">{metric.value}</p>
+          </Card>
+        ))}
+      </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_360px]">
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Acciones rápidas</p>
-              <h2 className="mt-1 text-xl font-black">Lo más usado para operar la tienda</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">/{business.publicSlug}</span>
-              <LearningLink href="/dashboard/learning#primeros-pasos" className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-700 shadow-sm">
-                Guía de inicio
-              </LearningLink>
-            </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <Card className="p-3">
+          <div className="mb-3">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--app-primary)]">Acciones rápidas</p>
+            <h2 className="mt-1 text-base font-black">Centro de control</h2>
           </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {quickActions.map((action) => (
-              <Link
-                key={action.label}
-                href={action.href}
-                target={action.external ? "_blank" : undefined}
-                className="rounded-2xl border border-gray-100 bg-gray-50 p-4 transition hover:border-gray-300 hover:bg-white hover:shadow-sm"
-              >
-                <p className="font-black text-gray-950">{action.label}</p>
-                <p className="mt-1 text-sm leading-5 text-gray-500">{action.description}</p>
-              </Link>
-            ))}
-          </div>
+          <QuickActions actions={quickActions} columns={3} compact />
         </Card>
 
-        <Card>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-400">Estado de tienda</p>
-          <div className="mt-4 space-y-3">
+        <Card className="p-3">
+          <p className="mb-2 text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--app-text-muted)]">Estado de tienda</p>
+          <div className="space-y-2">
             {healthItems.map((item) => (
-              <div key={item.label} className="flex items-start gap-3 rounded-2xl bg-gray-50 p-3">
-                <span className={item.done ? "mt-1 h-3 w-3 rounded-full bg-emerald-500" : "mt-1 h-3 w-3 rounded-full bg-amber-400"} />
-                <div>
-                  <p className="text-sm font-black text-gray-900">{item.label}</p>
-                  <p className="text-xs text-gray-500">{item.hint}</p>
+              <div key={item.label} className="flex items-center gap-2 rounded-xl bg-[var(--app-surface-muted)] p-2">
+                <span className={item.done ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-400"} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[var(--app-text)]">{item.label}</p>
+                  <p className="line-clamp-1 text-[0.7rem] text-[var(--app-text-muted)]">{item.hint}</p>
                 </div>
               </div>
             ))}
@@ -218,93 +185,41 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <OnboardingChecklist items={onboardingItems} />
-        <StoreShareCard businessName={business.name} storePath={`/store/${business.publicSlug}`} />
-      </div>
+      {storeIsEmpty ? <OnboardingChecklist items={onboardingItems} /> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metricCards.map((metric) => (
-          <Card key={metric.label}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm text-gray-500">{metric.label}</p>
-              <HelpTooltip description={metric.help} />
-            </div>
-            <p className="mt-2 text-3xl font-black">{metric.value}</p>
-          </Card>
-        ))}
-        <Card className="xl:col-span-2">
-          <p className="text-sm text-gray-500">Valor de inventario</p>
-          <p className="mt-2 text-3xl font-black">{formatCLP(stockValue)}</p>
-        </Card>
-        <Card className="xl:col-span-2">
-          <p className="text-sm text-gray-500">Tasa intención de compra IA</p>
-          <p className="mt-2 text-3xl font-black">{purchaseIntentRate}%</p>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card>
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-black">Productos con stock bajo</h2>
-            <Link href="/dashboard/products" className="text-sm font-bold text-gray-500">Inventario</Link>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-3">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-sm font-black text-[var(--app-text)]">Stock bajo ({lowStockProducts.length})</h3>
+            <Link href="/dashboard/products" className="text-xs font-bold text-[var(--app-primary)]">Ver</Link>
           </div>
-          <div className="mt-4 space-y-3">
+          <div className="space-y-1">
             {lowStockProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Sin alertas críticas.</p>
+              <p className="text-xs text-[var(--app-text-muted)]">Sin alertas</p>
             ) : (
-              lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
-                  <span className="font-semibold">{product.name}</span>
-                  <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-700">Stock {product.stock}</span>
+              lowStockProducts.slice(0, 5).map((product) => (
+                <div key={product.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--app-surface-muted)] p-2">
+                  <span className="truncate text-xs font-semibold text-[var(--app-text)]">{product.name}</span>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold text-red-700">S: {product.stock}</span>
                 </div>
               ))
             )}
           </div>
         </Card>
 
-        <Card>
-          <h2 className="text-xl font-black">Productos más consultados por IA</h2>
-          <div className="mt-4 space-y-3">
+        <Card className="p-3">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-sm font-black text-[var(--app-text)]">Top consultados ({topConsultedProducts.length})</h3>
+            <Link href="/dashboard/conversations" className="text-xs font-bold text-[var(--app-primary)]">Ver</Link>
+          </div>
+          <div className="space-y-1">
             {topConsultedProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Aún no hay suficientes consultas.</p>
+              <p className="text-xs text-[var(--app-text-muted)]">Prueba la IA</p>
             ) : (
-              topConsultedProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
-                  <span className="font-semibold">{product.name}</span>
-                  <span className="rounded-full bg-gray-900 px-3 py-1 text-sm font-bold text-white">{product.aiConsultCount}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-black">Más clicks a WhatsApp</h2>
-          <div className="mt-4 space-y-3">
-            {topWhatsappProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Aún no hay clicks registrados.</p>
-            ) : (
-              topWhatsappProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
-                  <span className="font-semibold">{product.name}</span>
-                  <span className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-bold text-white">{product.whatsappClickCount}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-black">Productos más vistos</h2>
-          <div className="mt-4 space-y-3">
-            {topViewedProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Aún no hay vistas de fichas de producto.</p>
-            ) : (
-              topViewedProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
-                  <span className="font-semibold">{product.name}</span>
-                  <span className="rounded-full bg-blue-600 px-3 py-1 text-sm font-bold text-white">{product.productViewCount}</span>
+              topConsultedProducts.slice(0, 5).map((product) => (
+                <div key={product.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--app-surface-muted)] p-2">
+                  <span className="truncate text-xs font-semibold text-[var(--app-text)]">{product.name}</span>
+                  <span className="rounded-full bg-[var(--app-primary)] px-2 py-0.5 text-[0.65rem] font-bold text-[var(--app-button-text)]">{product.aiConsultCount}</span>
                 </div>
               ))
             )}
@@ -312,33 +227,20 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-black">Últimas conversaciones</h2>
-          <Link href="/dashboard/conversations" className="text-sm font-bold text-gray-500">Ver todas</Link>
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b text-gray-500">
-                <th className="py-3">Cliente</th>
-                <th>Estado</th>
-                <th>Último mensaje</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latestConversations.map((conversation) => (
-                <tr key={conversation.id} className="border-b border-gray-100">
-                  <td className="py-4 font-semibold">{conversation.customer?.name ?? conversation.customer?.phone ?? "Visitante web"}</td>
-                  <td>{conversation.status}</td>
-                  <td className="max-w-md truncate">{conversation.messages[0]?.content ?? "-"}</td>
-                  <td>{conversation.updatedAt.toLocaleString("es-CL")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {latestConversations.length === 0 && <p className="py-8 text-center text-gray-500">Aún no hay conversaciones.</p>}
+      <Card className="p-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Catálogo público</p>
+            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{totalProductViews} vistas de producto</p>
+          </div>
+          <div>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">WhatsApp</p>
+            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{totalWhatsappClicks} clicks registrados</p>
+          </div>
+          <div>
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">IA</p>
+            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{purchaseIntentRate}% consultas con intención de compra</p>
+          </div>
         </div>
       </Card>
     </div>

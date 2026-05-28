@@ -1,23 +1,18 @@
 import { prisma } from "@/lib/db";
 import { requireStoreAccess } from "@/services/authorization";
 import { Card } from "@/components/Card";
-import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { EmptyState } from "@/components/EmptyState";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImageDropzone } from "@/components/ImageDropzone";
-import { Input, Select, Textarea } from "@/components/Input";
+import { Input, Select } from "@/components/Input";
 import { LearningLink } from "@/components/LearningLink";
 import { PageHeader } from "@/components/PageHeader";
-import { PendingSubmitButton } from "@/components/PendingSubmitButton";
-import { SectionGuide } from "@/components/SectionGuide";
 import { StatusAlert } from "@/components/StatusAlert";
-import { ProductAttributesFields } from "@/components/ProductAttributesFields";
-import { createProductAction, deleteProductAction, duplicateProductAction, updateProductAction } from "./actions";
+import { StatusBadge } from "@/components/StatusBadge";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
-import { parseStringRecord } from "@/lib/safe-json";
 import { getAttributeLabels } from "@/lib/store-types";
 import { formatPlanLimit, getPlanEntitlements } from "@/lib/plans";
+import { ProductCreateDrawer } from "./ProductCreateDrawer";
+import { ProductTableActions } from "./ProductTableActions";
 
 type ProductSearchParams = {
   success?: string;
@@ -25,6 +20,10 @@ type ProductSearchParams = {
   q?: string;
   category?: string;
   status?: string;
+  stock?: string;
+  price?: string;
+  create?: string;
+  newCategoryId?: string;
 };
 
 export default async function ProductsPage({ searchParams }: { searchParams?: Promise<ProductSearchParams | undefined> }) {
@@ -33,15 +32,31 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
   const q = String(resolvedSearchParams?.q ?? "").trim();
   const category = String(resolvedSearchParams?.category ?? "").trim();
   const status = String(resolvedSearchParams?.status ?? "").trim();
+  const stock = String(resolvedSearchParams?.stock ?? "").trim();
+  const price = String(resolvedSearchParams?.price ?? "").trim();
+  const newCategoryId = String(resolvedSearchParams?.newCategoryId ?? "").trim();
   const validStatus = enumValues(ProductStatus).includes(status as ProductStatusValue) ? status : undefined;
   const dynamicFields = getAttributeLabels(business.businessType);
+  const validStock = ["in_stock", "low", "out"].includes(stock) ? stock : "";
+  const validPrice = ["under_10000", "10000_50000", "over_50000"].includes(price) ? price : "";
+  const priceWhere =
+    validPrice === "under_10000"
+      ? { price: { lt: 10000 } }
+      : validPrice === "10000_50000"
+        ? { price: { gte: 10000, lte: 50000 } }
+        : validPrice === "over_50000"
+          ? { price: { gt: 50000 } }
+          : {};
 
-  const [products, categories, productCount] = await Promise.all([
+  const [rawProducts, categories, productCount] = await Promise.all([
     prisma.product.findMany({
       where: {
         businessId: business.id,
         ...(validStatus ? { status: validStatus } : {}),
         ...(category ? { categoryId: category } : {}),
+        ...(validStock === "in_stock" ? { stock: { gt: 0 } } : {}),
+        ...(validStock === "out" ? { stock: { lte: 0 } } : {}),
+        ...priceWhere,
         ...(q
           ? {
               OR: [
@@ -59,255 +74,180 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
     prisma.category.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } }),
     prisma.product.count({ where: { businessId: business.id } })
   ]);
+  const products =
+    validStock === "low"
+      ? rawProducts.filter((product) => product.stock > 0 && product.stock <= Math.max(product.minStock, 3))
+      : rawProducts;
   const productLimit = getPlanEntitlements(plan.type).maxProducts;
   const productLimitReached = productLimit !== "unlimited" && productCount >= productLimit;
+  const activeFilters = Boolean(q || category || validStatus || validStock || validPrice);
+  const activeProductCount = products.filter((product) => product.status === ProductStatus.ACTIVE).length;
+  const lowStockCount = rawProducts.filter((product) => product.stock > 0 && product.stock <= Math.max(product.minStock, 3)).length;
+  const statusLabels: Record<ProductStatusValue, string> = {
+    [ProductStatus.ACTIVE]: "Visible",
+    [ProductStatus.DRAFT]: "No visible",
+    [ProductStatus.ARCHIVED]: "Archivado"
+  };
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         eyebrow="Inventario"
         title="Productos"
-        description="Crea, edita, duplica y controla stock con datos separados por tienda."
+        description="Gestiona catálogo, stock y visibilidad desde una vista compacta."
         actions={
           <div className="flex flex-wrap gap-2">
-            <a href={`/store/${business.publicSlug}`} target="_blank" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            <ProductCreateDrawer
+              businessId={business.id}
+              categories={categories}
+              dynamicFields={dynamicFields}
+              disabled={productLimitReached}
+              defaultCategoryId={newCategoryId}
+              initialOpen={!productLimitReached && resolvedSearchParams?.create === "1"}
+            />
+            <a href={`/store/${business.publicSlug}`} target="_blank" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]">
               Ver catálogo
             </a>
-            <LearningLink href="/dashboard/learning#productos" className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+            <LearningLink href="/dashboard/learning#productos" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]">
               Guía de productos
             </LearningLink>
           </div>
         }
       />
       <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
-      <SectionGuide
-        eyebrow="Productos"
-        title="Publica productos sin confusión"
-        description="Completa los datos esenciales, mantén tu stock actualizado y usa la ayuda contextual para entender cada campo." 
-        help="Los productos con stock bajo te llegarán al dashboard y puedes crear un producto activo para comenzar a vender." 
-        actions={<LearningLink href="/dashboard/learning#productos">Ver guía</LearningLink>}
-      />
+
       {productLimitReached ? (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
+        <Card className="border-amber-200 bg-amber-50 p-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-black text-amber-950">Limite de productos alcanzado</h2>
-              <p className="mt-1 text-sm text-amber-800">
+              <h2 className="text-sm font-black text-amber-950">Límite de productos alcanzado</h2>
+              <p className="mt-1 text-xs text-amber-800">
                 Tu plan actual permite hasta {formatPlanLimit(productLimit)} productos. Puedes editar productos existentes, pero para agregar mas necesitas un plan superior.
               </p>
             </div>
-            <a href="/settings/billing" className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white">Ver planes</a>
+            <a href="/settings/billing" className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-black text-[var(--app-button-text)] transition duration-200 hover:bg-[var(--app-primary-hover)]">Ver planes</a>
           </div>
         </Card>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        <Card>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black">Nuevo producto</h2>
-              <p className="mt-1 text-sm text-gray-500">Crea un producto activo con precio, stock y una imagen atractiva para tu catálogo público.</p>
-            </div>
-            <HelpTooltip description="Completa el nombre, precio, stock y al menos una imagen para publicar un producto visible en tu catálogo." />
-          </div>
-          <form action={createProductAction} className="mt-5 space-y-4">
-            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Información básica</h3>
-              <label className="block text-sm font-semibold text-gray-900">
-                Nombre del producto
-                <span className="mt-1 block text-xs text-gray-500">Ej: Polera blanca manga corta.</span>
-                <Input name="name" placeholder="Nombre del producto" required />
-              </label>
-              <label className="block text-sm font-semibold text-gray-900">
-                SKU opcional
-                <span className="mt-1 block text-xs text-gray-500">Identificador interno para tu inventario.</span>
-                <Input name="sku" placeholder="SKU opcional" />
-              </label>
-              <label className="block text-sm font-semibold text-gray-900">
-                Categoría
-                <span className="mt-1 block text-xs text-gray-500">Clasifica el producto para que los clientes encuentren más fácil.</span>
-                <Select name="categoryId" defaultValue="">
-                  <option value="">Sin categoría</option>
-                  {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </Select>
-              </label>
-              <label className="block text-sm font-semibold text-gray-900">
-                Descripción
-                <span className="mt-1 block text-xs text-gray-500">Describe el producto y sus beneficios en pocas palabras.</span>
-                <Textarea name="description" placeholder="Descripción" rows={3} />
-              </label>
-            </div>
-            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Precio y stock</h3>
-              <div className="grid gap-3 lg:grid-cols-3">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Precio
-                  <span className="mt-1 block text-xs text-gray-500">Precio final que verá el cliente.</span>
-                  <Input name="price" type="number" min={0} placeholder="Precio" required />
-                </label>
-                <label className="block text-sm font-semibold text-gray-900">
-                  Precio antes
-                  <span className="mt-1 block text-xs text-gray-500">Opcional. Úsalo para mostrar descuento.</span>
-                  <Input name="compareAtPrice" type="number" min={0} placeholder="Precio antes" />
-                </label>
-                <label className="block text-sm font-semibold text-gray-900">
-                  % Descuento
-                  <span className="mt-1 block text-xs text-gray-500">Valor entre 0 y 100 para destacar ofertas.</span>
-                  <Input name="discountPercent" type="number" placeholder="% descuento" min={0} max={100} />
-                </label>
-              </div>
-              <div className="grid gap-3 lg:grid-cols-3">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Stock
-                  <span className="mt-1 block text-xs text-gray-500">Cantidad real disponible para la venta.</span>
-                  <Input name="stock" type="number" min={0} placeholder="Stock" />
-                </label>
-                <label className="block text-sm font-semibold text-gray-900">
-                  Costo
-                  <span className="mt-1 block text-xs text-gray-500">Costo interno del producto para tu control.</span>
-                  <Input name="costPrice" type="number" min={0} placeholder="Costo" />
-                </label>
-                <label className="block text-sm font-semibold text-gray-900">
-                  Stock mínimo
-                  <span className="mt-1 block text-xs text-gray-500">Recibirás alerta cuando el stock sea bajo.</span>
-                  <Input name="minStock" type="number" min={0} placeholder="Stock mínimo" />
-                </label>
-              </div>
-            </div>
-            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">Imágenes, ficha y publicación</h3>
-              <ImageDropzone name="imageUrl" businessId={business.id} label="Imagen principal del producto" />
-              <label className="block text-sm font-semibold text-gray-900">
-                Tags
-                <span className="mt-1 block text-xs text-gray-500">Ej: ropa, oferta, verano. Se usan para búsquedas internas y filtros.</span>
-                <Input name="tags" placeholder="Tags: ropa, rosa, oferta" />
-              </label>
-              <ProductAttributesFields fields={dynamicFields} />
-              <label className="flex items-center gap-2 text-sm font-semibold">
-                <input name="featured" type="checkbox" />
-                Destacado
-              </label>
-            </div>
-            <PendingSubmitButton className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
-              Crear producto
-            </PendingSubmitButton>
-          </form>
-        </Card>
-
-        <div className="space-y-4">
-          <Card>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-black text-gray-900">{products.length} resultado{products.length === 1 ? "" : "s"}</p>
-                <p className="text-xs text-gray-500">Filtra rápido por categoría, estado o búsqueda.</p>
-              </div>
-              {(q || category || validStatus) && <a href="/dashboard/products" className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700">Limpiar</a>}
-            </div>
-            <form className="grid gap-3 md:grid-cols-[1fr_180px_160px_auto]" action="/dashboard/products">
-              <Input name="q" defaultValue={q} placeholder="Buscar por nombre, SKU o tags" />
-              <Select name="category" defaultValue={category}>
-                <option value="">Todas las categorías</option>
-                {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </Select>
-              <Select name="status" defaultValue={validStatus ?? ""}>
-                <option value="">Todos los estados</option>
-                <option value={ProductStatus.ACTIVE}>Activo</option>
-                <option value={ProductStatus.DRAFT}>Borrador</option>
-                <option value={ProductStatus.ARCHIVED}>Archivado</option>
-              </Select>
-              <button className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white">Filtrar</button>
-            </form>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Total", productCount],
+          ["En vista", products.length],
+          ["Visibles", activeProductCount],
+          ["Stock bajo", lowStockCount]
+        ].map(([label, value]) => (
+          <Card key={String(label)} className="p-3">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--app-text-muted)]">{label}</p>
+            <p className="mt-1 text-xl font-black text-[var(--app-text)]">{value}</p>
           </Card>
-
-          {products.map((product) => {
-            const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
-            const currentProductAttributes = parseStringRecord(product.attributesJson);
-            return (
-              <Card key={product.id} className="grid gap-4 lg:grid-cols-[120px_1fr]">
-                <img src={product.imageUrl || "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=800&auto=format&fit=crop"} alt={product.name} className="h-28 w-28 rounded-2xl object-cover" />
-                <div>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">{product.category?.name ?? "Sin categoría"}</span>
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-700">{product.status}</span>
-                        {lowStock && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Stock bajo</span>}
-                        {product.stock <= 0 && <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700">Sin stock</span>}
-                      </div>
-                      <h3 className="mt-2 text-lg font-black">{product.name}</h3>
-                      <p className="text-sm text-gray-500">SKU {product.sku ?? "-"} · Stock {product.stock} · Consultas IA {product.aiConsultCount}</p>
-                      <p className="mt-1 text-sm text-gray-500 line-clamp-2">{product.description}</p>
-                    </div>
-                    <div className="text-right">
-                      {product.discountPercent > 0 && <p className="text-xs font-bold text-pink-600">-{product.discountPercent}%</p>}
-                      <p className="text-xl font-black">{formatCLP(getFinalPrice(product.price, product.discountPercent))}</p>
-                      {(product.compareAtPrice || product.discountPercent > 0) && <p className="text-sm text-gray-400 line-through">{formatCLP(product.compareAtPrice ?? product.price)}</p>}
-                    </div>
-                  </div>
-
-                  <details className="mt-4 rounded-2xl bg-gray-50 p-4">
-                    <summary className="cursor-pointer text-sm font-black">Editar producto completo</summary>
-                    <form action={updateProductAction} className="mt-4 grid gap-3">
-                      <input type="hidden" name="id" value={product.id} />
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <Input name="name" defaultValue={product.name} required />
-                        <Input name="sku" defaultValue={product.sku ?? ""} placeholder="SKU" />
-                        <Select name="categoryId" defaultValue={product.categoryId ?? ""}>
-                          <option value="">Sin categoría</option>
-                          {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                        </Select>
-                        <Select name="status" defaultValue={product.status}>
-                          <option value={ProductStatus.ACTIVE}>Activo</option>
-                          <option value={ProductStatus.DRAFT}>Borrador</option>
-                          <option value={ProductStatus.ARCHIVED}>Archivado</option>
-                        </Select>
-                      </div>
-                      <Textarea name="description" defaultValue={product.description ?? ""} rows={3} />
-                      <ProductAttributesFields fields={dynamicFields} currentAttributes={currentProductAttributes} />
-                      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                        <Input name="price" type="number" min={0} defaultValue={product.price} />
-                        <Input name="compareAtPrice" type="number" min={0} defaultValue={product.compareAtPrice ?? ""} />
-                        <Input name="costPrice" type="number" min={0} defaultValue={product.costPrice ?? ""} />
-                        <Input name="discountPercent" type="number" min={0} max={100} defaultValue={product.discountPercent} />
-                        <Input name="stock" type="number" min={0} defaultValue={product.stock} />
-                        <Input name="minStock" type="number" min={0} defaultValue={product.minStock} />
-                      </div>
-                      <ImageDropzone name="imageUrl" businessId={business.id} label="Imagen principal del producto" initialUrl={product.imageUrl} />
-                      <Input name="tags" defaultValue={product.tags ?? ""} placeholder="Tags" />
-                      <label className="flex items-center gap-2 text-sm font-semibold"><input name="featured" type="checkbox" defaultChecked={product.featured} /> Destacado</label>
-                      <div className="flex flex-wrap gap-2">
-                        <PendingSubmitButton className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
-                          Guardar cambios
-                        </PendingSubmitButton>
-                      </div>
-                    </form>
-                  </details>
-
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    <form action={duplicateProductAction}>
-                      <input type="hidden" name="id" value={product.id} />
-                      <button className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold">Duplicar</button>
-                    </form>
-                    <form action={deleteProductAction}>
-                      <input type="hidden" name="id" value={product.id} />
-                      <ConfirmSubmitButton message={`¿Eliminar ${product.name}?`} className="rounded-2xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
-                        Eliminar
-                      </ConfirmSubmitButton>
-                    </form>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-          {products.length === 0 && (
-            <EmptyState
-              title="No hay productos aún"
-              description="Agrega tu primer producto para empezar a mostrar tu catálogo público y recibir consultas." 
-              action={<LearningLink href="/dashboard/learning#productos">Aprender a crear un producto</LearningLink>}
-            />
-          )}
-        </div>
+        ))}
       </div>
+
+      <Card className="p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-black text-[var(--app-text)]">{products.length} producto{products.length === 1 ? "" : "s"}</h2>
+            <p className="text-xs text-[var(--app-text-muted)]">Busca, filtra y gestiona sin salir de la lista.</p>
+          </div>
+          {activeFilters ? <a href="/dashboard/products" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-bold text-[var(--app-text)] transition duration-200 hover:bg-[var(--app-surface-muted)]">Limpiar filtros</a> : null}
+        </div>
+
+        <form className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1.4fr)_150px_130px_130px_150px_auto]" action="/dashboard/products">
+          <Input name="q" defaultValue={q} placeholder="Buscar por nombre, SKU o tags..." className="py-2" />
+          <Select name="category" defaultValue={category} className="py-2">
+            <option value="">Categorías</option>
+            {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </Select>
+          <Select name="status" defaultValue={validStatus ?? ""} className="py-2">
+            <option value="">Estados</option>
+            <option value={ProductStatus.ACTIVE}>Visible</option>
+            <option value={ProductStatus.DRAFT}>No visible</option>
+            <option value={ProductStatus.ARCHIVED}>Archivado</option>
+          </Select>
+          <Select name="stock" defaultValue={validStock} className="py-2">
+            <option value="">Stock</option>
+            <option value="in_stock">Con stock</option>
+            <option value="low">Stock bajo</option>
+            <option value="out">Agotado</option>
+          </Select>
+          <Select name="price" defaultValue={validPrice} className="py-2">
+            <option value="">Precio</option>
+            <option value="under_10000">Menos de $10.000</option>
+            <option value="10000_50000">$10.000 - $50.000</option>
+            <option value="over_50000">Más de $50.000</option>
+          </Select>
+          <button className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-bold text-[var(--app-button-text)] hover:bg-[var(--app-primary-hover)]">Filtrar</button>
+        </form>
+
+        {products.length === 0 ? (
+          <EmptyState
+            title={activeFilters ? "No encontramos resultados" : "No hay productos aún"}
+            description={activeFilters ? "No encontramos resultados con estos filtros." : "Crea tu primer producto para comenzar a vender."}
+            action={
+              activeFilters ? (
+                <a href="/dashboard/products" className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-black text-[var(--app-button-text)]">Limpiar filtros</a>
+              ) : (
+                <LearningLink href="/dashboard/learning#productos">Aprender a crear un producto</LearningLink>
+              )
+            }
+          />
+        ) : (
+          <div className="rounded-xl border border-[var(--app-border)]">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-[var(--app-surface-muted)] text-left text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                <tr>
+                  <th className="px-3 py-2">Producto</th>
+                  <th className="hidden px-3 py-2 md:table-cell">Categoría</th>
+                  <th className="hidden px-3 py-2 lg:table-cell">Estado</th>
+                  <th className="hidden px-3 py-2 text-right sm:table-cell">Stock</th>
+                  <th className="px-3 py-2 text-right">Precio</th>
+                  <th className="px-3 py-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--app-border)]">
+                {products.map((product) => {
+                  const lowStock = product.stock > 0 && product.stock <= Math.max(product.minStock, 3);
+                  return (
+                    <tr key={product.id} className="align-middle transition duration-200 hover:bg-[var(--app-surface-muted)]/70">
+                      <td className="min-w-0 px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <img
+                            src={product.imageUrl || "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=400&auto=format&fit=crop"}
+                            alt={product.name}
+                            className="h-11 w-11 shrink-0 rounded-lg object-cover"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-[var(--app-text)]">{product.name}</p>
+                            <p className="truncate text-xs text-[var(--app-text-muted)]">SKU {product.sku ?? "-"} · {product.category?.name ?? "Sin categoría"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden px-3 py-2 text-xs font-semibold text-[var(--app-text-muted)] md:table-cell">{product.category?.name ?? "Sin categoría"}</td>
+                      <td className="hidden px-3 py-2 lg:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          <StatusBadge variant={product.status === ProductStatus.ACTIVE ? "success" : product.status === ProductStatus.DRAFT ? "warning" : "neutral"}>
+                            {statusLabels[product.status as ProductStatusValue] ?? product.status}
+                          </StatusBadge>
+                          {lowStock && <StatusBadge variant="warning">Stock bajo</StatusBadge>}
+                        </div>
+                      </td>
+                      <td className="hidden px-3 py-2 text-right text-xs font-bold text-[var(--app-text)] sm:table-cell">{product.stock}</td>
+                      <td className="px-3 py-2 text-right">
+                        {product.discountPercent > 0 && <p className="text-[0.65rem] font-bold text-pink-600">-{product.discountPercent}%</p>}
+                        <p className="whitespace-nowrap text-sm font-black text-[var(--app-text)]">{formatCLP(getFinalPrice(product.price, product.discountPercent))}</p>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <ProductTableActions product={product} categories={categories} dynamicFields={dynamicFields} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

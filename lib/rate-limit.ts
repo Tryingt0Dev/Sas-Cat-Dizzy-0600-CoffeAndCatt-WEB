@@ -14,6 +14,7 @@ type RateLimitScope = {
   endpoint: string;
   ip?: string | null;
   businessId?: string | null;
+  businessSlug?: string | null;
   userId?: string | null;
 };
 
@@ -128,6 +129,7 @@ export function rateLimitKey(scope: RateLimitScope) {
   return [
     scope.endpoint,
     scope.businessId ? `business:${scope.businessId}` : null,
+    scope.businessSlug ? `store:${scope.businessSlug}` : null,
     scope.userId ? `user:${scope.userId}` : null,
     scope.ip ? `ip:${scope.ip}` : null
   ]

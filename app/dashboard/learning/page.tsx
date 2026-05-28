@@ -33,12 +33,12 @@ export default function DashboardLearningPage() {
         <LearningLink href="#faq">Preguntas frecuentes</LearningLink>
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
-          <section id="primeros-pasos" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Primeros pasos</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Pon tu tienda en marcha</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Empieza por las acciones de alto impacto: WhatsApp, logo, productos y categorías. Cada paso te ayuda a recibir consultas más rápido.</p>
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-5">
+          <section id="primeros-pasos" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Primeros pasos</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Pon tu tienda en marcha</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Empieza por las acciones de alto impacto: WhatsApp, logo, productos y categorías. Cada paso te ayuda a recibir consultas más rápido.</p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <InfoCard
                 title="Configura tu WhatsApp"
@@ -51,30 +51,30 @@ export default function DashboardLearningPage() {
             </div>
           </section>
 
-          <section id="configurar-tienda" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Configuración</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Tu tienda y diseño</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Aquí defines el nombre visible dentro del panel, la URL pública, el estilo del catálogo y las opciones de branding que tus clientes verán en el catálogo público.</p>
+          <section id="configurar-tienda" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Configuración</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Tu tienda y diseño</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Aquí defines el nombre visible dentro del panel, la URL pública, el estilo del catálogo y las opciones de branding que tus clientes verán en el catálogo público.</p>
             <div className="mt-6 space-y-4">
               <div>
-                <p className="font-black text-gray-950">Nombre del panel interno</p>
-                <p className="mt-1 text-sm text-gray-600">Este nombre ayuda a tu equipo a reconocer el panel en el dashboard, sin afectar la URL pública.</p>
+                <p className="font-black text-[var(--app-text)]">Nombre del panel interno</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Este nombre ayuda a tu equipo a reconocer el panel en el dashboard, sin afectar la URL pública.</p>
               </div>
               <div>
-                <p className="font-black text-gray-950">URL pública</p>
-                <p className="mt-1 text-sm text-gray-600">El slug visible en /store/define cómo tus clientes acceden al catálogo público.</p>
+                <p className="font-black text-[var(--app-text)]">URL pública</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">El slug visible en /store/define cómo tus clientes acceden al catálogo público.</p>
               </div>
               <div>
-                <p className="font-black text-gray-950">Temas y colores</p>
-                <p className="mt-1 text-sm text-gray-600">Escoge un estilo coherente con tu marca. Si no tienes preferencia, elige un color principal que sea fácil de leer y un fondo claro.</p>
+                <p className="font-black text-[var(--app-text)]">Temas y colores</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Escoge un estilo coherente con tu marca. Si no tienes preferencia, elige un color principal que sea fácil de leer y un fondo claro.</p>
               </div>
             </div>
           </section>
 
-          <section id="productos" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Productos</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Agregar, editar y publicar</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Cada producto debe tener nombre, precio y stock. Si quieres vender rápido, usa una descripción clara, una buena imagen y un precio visible.</p>
+          <section id="productos" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Productos</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Agregar, editar y publicar</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Cada producto debe tener nombre, precio y stock. Si quieres vender rápido, usa una descripción clara, una buena imagen y un precio visible.</p>
             <div className="mt-6 space-y-4">
               <InfoCard
                 title="Precio y descuento"
@@ -91,10 +91,10 @@ export default function DashboardLearningPage() {
             </div>
           </section>
 
-          <section id="clientes" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Clientes</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Administra tu CRM</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Registra clientes, actualiza su estado y usa notas internas para coordinar mejor a tu equipo de ventas.</p>
+          <section id="clientes" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Clientes</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Administra tu CRM</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Registra clientes, actualiza su estado y usa notas internas para coordinar mejor a tu equipo de ventas.</p>
             <div className="mt-6 space-y-4">
               <InfoCard
                 title="Información de contacto"
@@ -107,10 +107,10 @@ export default function DashboardLearningPage() {
             </div>
           </section>
 
-          <section id="ventas" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Ventas</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Convierte cotizaciones en pedidos</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Solo crea pedidos cuando una cotización fue aceptada. Actualiza el estado del pedido para entregar mejor seguimiento.</p>
+          <section id="ventas" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Ventas</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Convierte cotizaciones en pedidos</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Solo crea pedidos cuando una cotización fue aceptada. Actualiza el estado del pedido para entregar mejor seguimiento.</p>
             <div className="mt-6 space-y-4">
               <InfoCard
                 title="Cotizaciones aceptadas"
@@ -123,17 +123,17 @@ export default function DashboardLearningPage() {
             </div>
           </section>
 
-          <section id="imagenes" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Imágenes</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Usa imágenes que vendan</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Súbelas en JPG, PNG o WEBP. La imagen principal debe ser clara y mostrar el producto con fondo limpio.</p>
-            <p className="mt-3 text-sm text-gray-500">Si la imagen no sube, revisa el tamaño y el formato. También puedes pegar una URL válida directamente.</p>
+          <section id="imagenes" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Imágenes</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Usa imágenes que vendan</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Súbelas en JPG, PNG o WEBP. La imagen principal debe ser clara y mostrar el producto con fondo limpio.</p>
+            <p className="mt-3 text-sm text-[var(--app-text-muted)]">Si la imagen no sube, revisa el tamaño y el formato. También puedes pegar una URL válida directamente.</p>
           </section>
 
-          <section id="ia" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">IA</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Asistente y ventas automáticas</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-600">Esta sección controla cómo responde la IA en tu catálogo. Ajusta el tono, las instrucciones y el mensaje de fallback para que coincidan con tu estilo de ventas.</p>
+          <section id="ia" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">IA</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Asistente y ventas automáticas</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--app-text-muted)]">Esta sección controla cómo responde la IA en tu catálogo. Ajusta el tono, las instrucciones y el mensaje de fallback para que coincidan con tu estilo de ventas.</p>
             <div className="mt-6 space-y-4">
               <InfoCard
                 title="Tono de la IA"
@@ -146,31 +146,31 @@ export default function DashboardLearningPage() {
             </div>
           </section>
 
-          <section id="faq" className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">FAQ</p>
-            <h2 className="mt-3 text-2xl font-black text-gray-950">Preguntas frecuentes y errores comunes</h2>
+          <section id="faq" className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">FAQ</p>
+            <h2 className="mt-3 text-2xl font-black text-[var(--app-text)]">Preguntas frecuentes y errores comunes</h2>
             <div className="mt-6 space-y-4">
               <div>
-                <p className="font-black text-gray-950">¿Por qué no veo mis productos?</p>
-                <p className="mt-1 text-sm text-gray-600">Si el producto está en estado Borrador o Archivado, no se muestra en el catálogo público.</p>
+                <p className="font-black text-[var(--app-text)]">¿Por qué no veo mis productos?</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Si el producto está en estado Borrador o Archivado, no se muestra en el catálogo público.</p>
               </div>
               <div>
-                <p className="font-black text-gray-950">¿Qué pasa si mi URL pública cambia?</p>
-                <p className="mt-1 text-sm text-gray-600">Actualiza el slug en Ajustes. La nueva ruta será /store/tu-nuevo-slug y se aplicará a la experiencia pública.</p>
+                <p className="font-black text-[var(--app-text)]">¿Qué pasa si mi URL pública cambia?</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Actualiza el slug en Ajustes. La nueva ruta será /store/tu-nuevo-slug y se aplicará a la experiencia pública.</p>
               </div>
               <div>
-                <p className="font-black text-gray-950">¿Cómo evitar notas negativas?</p>
-                <p className="mt-1 text-sm text-gray-600">Mantén los precios claros, la descripción honesta y responde rápido a consultas por WhatsApp o chat.</p>
+                <p className="font-black text-[var(--app-text)]">¿Cómo evitar notas negativas?</p>
+                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Mantén los precios claros, la descripción honesta y responde rápido a consultas por WhatsApp o chat.</p>
               </div>
             </div>
           </section>
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">Buena práctica</p>
-            <h3 className="mt-3 text-xl font-black text-gray-950">Checklist rápido</h3>
-            <ul className="mt-4 space-y-3 text-sm text-gray-600">
+          <section className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Buena práctica</p>
+            <h3 className="mt-3 text-xl font-black text-[var(--app-text)]">Checklist rápido</h3>
+            <ul className="mt-4 space-y-3 text-sm text-[var(--app-text-muted)]">
               <li>1. Configura WhatsApp y datos de contacto.</li>
               <li>2. Sube un logo y banner para generar confianza.</li>
               <li>3. Publica al menos un producto activo.</li>
@@ -190,9 +190,9 @@ export default function DashboardLearningPage() {
             ]}
           />
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">¿Necesitas más ayuda?</p>
-            <p className="mt-3 text-sm leading-6 text-gray-600">Consulta el dashboard principal para ver métricas y enlaces rápidos a cada sección del panel.</p>
+          <section className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-text-muted)]">¿Necesitas más ayuda?</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--app-text-muted)]">Consulta el dashboard principal para ver métricas y enlaces rápidos a cada sección del panel.</p>
             <div className="mt-5 space-y-3">
               <LearningLink href="/dashboard">Volver al panel</LearningLink>
               <LearningLink href="#productos">Guía de productos</LearningLink>

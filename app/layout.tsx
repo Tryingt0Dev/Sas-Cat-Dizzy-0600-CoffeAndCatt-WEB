@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
+import { FloatingPlatformAdminButton } from "@/components/FloatingPlatformAdminButton";
 import { getSaasThemeBySlug, getSaasThemeCssVariables, defaultSaasThemeSlug } from "@/lib/themes/theme-utils";
 
 export const metadata: Metadata = {
@@ -20,7 +21,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="es">
-      <body style={themeStyle}>{children}</body>
+      <body style={themeStyle}>
+        {children}
+        <FloatingPlatformAdminButton />
+      </body>
     </html>
   );
 }

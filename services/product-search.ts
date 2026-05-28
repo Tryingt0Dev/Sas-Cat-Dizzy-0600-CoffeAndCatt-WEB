@@ -2,10 +2,11 @@ import { prisma } from "@/lib/db";
 import { ProductStatus } from "@/lib/enums";
 import { getFinalPrice } from "@/lib/format";
 
+const MAX_AI_SEARCH_CANDIDATES = 80;
+
 export type RelevantProduct = {
   id: string;
   name: string;
-  sku: string | null;
   description: string | null;
   price: number;
   compareAtPrice: number | null;
@@ -13,20 +14,17 @@ export type RelevantProduct = {
   finalPrice: number;
   stock: number;
   category: string | null;
-  tags: string | null;
 };
 
 type SearchableProduct = {
   id: string;
   name: string;
-  sku: string | null;
   description: string | null;
   price: number;
   compareAtPrice: number | null;
   discountPercent: number;
   stock: number;
   featured: boolean;
-  tags: string | null;
   updatedAt: Date;
   category: { name: string } | null;
 };
@@ -158,22 +156,20 @@ function findAttributes(text: string, attributes: CatalogAttribute[]) {
 }
 
 function productHaystack(product: SearchableProduct) {
-  return normalizeText(`${product.name} ${product.sku ?? ""} ${product.description ?? ""} ${product.tags ?? ""} ${product.category?.name ?? ""}`);
+  return normalizeText(`${product.name} ${product.description ?? ""} ${product.category?.name ?? ""}`);
 }
 
 function toRelevantProduct(product: SearchableProduct): RelevantProduct {
   return {
     id: product.id,
     name: product.name,
-    sku: product.sku,
     description: product.description,
     price: product.price,
     compareAtPrice: product.compareAtPrice,
     discountPercent: product.discountPercent,
     finalPrice: getFinalPrice(product.price, product.discountPercent),
     stock: product.stock,
-    category: product.category?.name ?? null,
-    tags: product.tags
+    category: product.category?.name ?? null
   };
 }
 
@@ -230,8 +226,20 @@ export async function analyzeProductQuery(businessId: string, query: string, lim
       businessId,
       status: ProductStatus.ACTIVE
     },
-    include: { category: true },
-    orderBy: [{ featured: "desc" }, { updatedAt: "desc" }]
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      price: true,
+      compareAtPrice: true,
+      discountPercent: true,
+      stock: true,
+      featured: true,
+      updatedAt: true,
+      category: { select: { name: true } }
+    },
+    orderBy: [{ featured: "desc" }, { updatedAt: "desc" }],
+    take: Math.min(Math.max(limit * 10, 50), MAX_AI_SEARCH_CANDIDATES)
   });
 
   const scored = products.map((product) => scoreProduct(product, tokens, requestedProducts, requestedColors));

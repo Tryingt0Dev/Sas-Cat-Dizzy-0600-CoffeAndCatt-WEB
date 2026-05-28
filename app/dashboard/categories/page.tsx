@@ -33,43 +33,57 @@ export default async function CategoriesPage({ searchParams }: { searchParams?: 
       />
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <Card>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black">Nueva categoría</h2>
-            <HelpTooltip description="Crea una etiqueta para agrupar productos similares y facilitar la búsqueda en el catálogo." />
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--app-primary)]">Nueva categoría</p>
+              <h2 className="mt-2 text-xl font-black text-[var(--app-text)]">Crea una etiqueta rápida</h2>
+            </div>
+            <HelpTooltip description="Crea una etiqueta para agrupar productos similares y mejorar la navegación de tu catálogo." />
           </div>
-          <p className="mt-1 text-sm text-gray-500">Usa nombres simples como Poleras, Electrónica o Servicios.</p>
+          <p className="mt-3 text-sm text-[var(--app-text-muted)]">Usa nombres claros como Poleras, Electrónica o Servicios.</p>
           <form action={createCategoryAction} className="mt-5 space-y-4">
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Nombre de categoría
-              <span className="mt-1 block text-xs text-gray-500">Ej: Poleras, Cámaras, Servicios.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Ej: Poleras, Cámaras, Servicios.</span>
               <Input name="name" placeholder="Nombre de la categoría" required />
             </label>
-            <button className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white">Crear categoría</button>
+            <button className="w-full rounded-2xl bg-[var(--app-primary)] px-4 py-3 text-sm font-bold text-[var(--app-button-text)] transition duration-200 hover:bg-[var(--app-primary-hover)]">Crear categoría</button>
           </form>
         </Card>
         <Card>
           {categories.length === 0 ? (
             <EmptyState
               title="Aún no hay categorías"
-              description="Crea categorías para organizar tus productos y mejorar la búsqueda de los clientes en el catálogo." 
+              description="Crea categorías para organizar tus productos y facilitar la búsqueda en tu tienda."
               action={<LearningLink href="/dashboard/learning#productos">Aprender a crear categorías</LearningLink>}
             />
           ) : (
-            <div className="space-y-3">
-              {categories.map((category) => (
-                <div key={category.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
-                  <div>
-                    <p className="font-black">{category.name}</p>
-                    <p className="text-sm text-gray-500">{category._count.products} productos</p>
-                  </div>
-                  <form action={deleteCategoryAction}>
-                    <input type="hidden" name="id" value={category.id} />
-                    <ConfirmSubmitButton message={`¿Eliminar la categoría ${category.name}?`} className="text-sm font-bold text-red-600">
-                      Eliminar
-                    </ConfirmSubmitButton>
-                  </form>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-[var(--app-text)]">{categories.length} categorías</p>
+                  <p className="text-xs text-[var(--app-text-muted)]">Gestiona la organización del catálogo desde aquí.</p>
                 </div>
-              ))}
+                <LearningLink href="/dashboard/learning#productos" className="text-xs font-black">
+                  Ver guía
+                </LearningLink>
+              </div>
+              <div className="grid gap-3">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center justify-between gap-3 rounded-3xl bg-[var(--app-surface-muted)] p-4">
+                    <div>
+                      <p className="font-black text-[var(--app-text)]">{category.name}</p>
+                      <p className="mt-1 text-xs text-[var(--app-text-muted)]">{category._count.products} productos</p>
+                    </div>
+                    <form action={deleteCategoryAction}>
+                      <input type="hidden" name="id" value={category.id} />
+                      <ConfirmSubmitButton message={`¿Eliminar la categoría ${category.name}?`} className="rounded-2xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
+                        Eliminar
+                      </ConfirmSubmitButton>
+                    </form>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>

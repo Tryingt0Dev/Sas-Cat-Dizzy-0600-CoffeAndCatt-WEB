@@ -3,13 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// SQLite does not support Prisma enums in Prisma 5.22.
-// Status/template/plan fields are stored as strings and validated with TypeScript + Zod.
-// When migrating to PostgreSQL/Supabase, these String fields can be converted to native Prisma enums.
+// This schema is intended for PostgreSQL/Supabase production deployments.
+// Use the `--schema=prisma/schema_postgres.prisma` flag when running Prisma
+// commands to target Postgres without affecting the local SQLite schema.
+// Example: `prisma migrate deploy --schema=prisma/schema_postgres.prisma`.
+
+// Note: SQLite does not support Prisma enums in Prisma 5.22. Status/template/plan
+// fields are stored as strings and validated with TypeScript + Zod. When
+// migrating to PostgreSQL/Supabase you can convert string fields to native
+// Prisma enums in a migration if desired.
 
 model User {
   id                       String                   @id @default(cuid())
@@ -99,6 +105,8 @@ model Business {
   memberships            Membership[]
   slugHistory            BusinessSlugHistory[]
   auditLogs              AuditLog[]
+  customDomain           String?               @unique
+  customDomainVerified   Boolean               @default(false)
 
   @@index([ownerId])
   @@index([planId])
@@ -209,6 +217,21 @@ model PlatformSetting {
   updatedAt   DateTime @updatedAt
 
   @@index([key])
+}
+
+model PlatformAdminAccess {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  role           String   @default("ADMIN")
+  enabled        Boolean  @default(true)
+  createdByEmail String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([enabled])
 }
 
 model Category {

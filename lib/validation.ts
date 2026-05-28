@@ -68,8 +68,17 @@ export function imageUrlBelongsToBusiness(url: string | null | undefined, busine
   if (!url.startsWith("/uploads/")) return true;
 
   const parts = url.split("/").filter(Boolean);
-  if (parts.length < 3 || parts[0] !== "uploads") return false;
-  return parts[1] === businessId && !parts.slice(2).some((part) => part === "." || part === "..");
+  if (parts[0] !== "uploads") return false;
+
+  const isCurrentStoragePath =
+    parts.length >= 5 &&
+    parts[1] === "businesses" &&
+    parts[2] === businessId &&
+    parts[3] === "images";
+  const isLegacyStoragePath = parts.length >= 3 && parts[1] === businessId;
+  if (!isCurrentStoragePath && !isLegacyStoragePath) return false;
+
+  return !parts.some((part) => part === "." || part === ".." || part.includes("\0") || part.includes("\\"));
 }
 
 export function intFromForm(value: FormDataEntryValue | null, fallback = 0) {
@@ -179,7 +188,7 @@ export const aiProductContextSchema = z.object({
 export const aiRequestSchema = z
   .object({
     businessSlug: z.string().trim().max(120).optional(),
-    slug: z.string().trim().max(120).optional(),
+    publicSlug: z.string().trim().max(120).optional(),
     customerMessage: z.string().trim().max(1200).optional(),
     message: z.string().trim().max(1200).optional(),
     customerPhone: z.string().trim().max(40).optional(),
@@ -190,7 +199,7 @@ export const aiRequestSchema = z
     productContext: aiProductContextSchema.optional()
   })
   .transform((value, ctx) => {
-    const businessSlug = value.businessSlug || value.slug || "";
+    const businessSlug = value.businessSlug || value.publicSlug || "";
     const customerMessage = value.customerMessage || value.message || "";
     if (!businessSlug) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "businessSlug es obligatorio" });

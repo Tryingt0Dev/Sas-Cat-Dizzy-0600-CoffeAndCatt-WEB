@@ -38,13 +38,13 @@ export default async function ConversationsPage() {
                   <h2 className="text-lg font-black">{conversation.customer?.name ?? conversation.customer?.phone ?? "Cliente web"}</h2>
                   <HelpTooltip description="Revisa si la conversación es abierta, cerrada o requiere seguimiento humano." />
                 </div>
-                <p className="text-sm text-gray-500">{conversation.channel} · {conversation.status}</p>
+                <p className="text-sm text-[var(--app-text-muted)]">{conversation.channel} · {conversation.status}</p>
               </div>
-              <p className="text-sm text-gray-400">{conversation.createdAt.toLocaleString("es-CL")}</p>
+              <p className="text-sm text-[var(--app-text-muted)]">{conversation.createdAt.toLocaleString("es-CL")}</p>
             </div>
             <div className="mt-4 space-y-2">
               {conversation.messages.map((message) => (
-                <div key={message.id} className="rounded-2xl bg-gray-50 p-3 text-sm">
+                <div key={message.id} className="rounded-2xl bg-[var(--app-surface-muted)] p-2 text-sm">
                   <span className="font-bold">{message.senderType}: </span>{message.content}
                 </div>
               ))}

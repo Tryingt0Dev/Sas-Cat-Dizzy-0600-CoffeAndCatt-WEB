@@ -17,7 +17,7 @@ export function SaaSThemeSelector({
   disableSelected?: boolean;
 }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-3">
       {themes.map((theme) => (
         <form key={theme.slug} className="min-h-full" action={action}>
           <input type="hidden" name="themeSlug" value={theme.slug} />

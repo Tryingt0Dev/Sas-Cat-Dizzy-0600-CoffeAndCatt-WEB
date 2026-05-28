@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { AiSourcesList } from "@/components/AiSourceBadge";
+import type { AiSource } from "@/lib/ai-sources";
 import type { ProductAiContext, StoreChatAskDetail } from "@/lib/catalog";
 
 type ChatMessage = {
   role: "customer" | "ai";
   content: string;
+  sources?: AiSource[];
 };
 
 type AskAiDetail =
@@ -135,7 +138,7 @@ export function StoreChat({
           })
         });
 
-        const data: { ok?: boolean; answer?: string; reply?: string; error?: string; conversationId?: string } =
+        const data: { ok?: boolean; answer?: string; reply?: string; error?: string; conversationId?: string; sources?: AiSource[] } =
           await res.json().catch(() => ({
             ok: false,
             error: productErrorMessage
@@ -150,7 +153,7 @@ export function StoreChat({
 
         setMessages((prev) => [
           ...prev,
-          { role: "ai", content: data.answer ?? data.reply ?? "No pude generar una respuesta." }
+          { role: "ai", content: data.answer ?? data.reply ?? "No pude generar una respuesta.", sources: data.sources }
         ]);
       } catch (error) {
         const message = productId
@@ -216,19 +219,19 @@ export function StoreChat({
   }
 
   return (
-    <div id="store-ai-chat" className="rounded-[var(--catalog-radius)] border border-black/10 bg-white p-4 shadow-sm">
+    <div id="store-ai-chat" className="rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-surface)] p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-lg font-black">Asesor de tienda</h3>
-        <p className="text-sm text-gray-500">Pregunta por productos, precios y stock.</p>
+        <h3 className="text-lg font-black text-[var(--catalog-text)]">Asesor de tienda</h3>
+        <p className="text-sm text-[var(--catalog-text-muted)]">Pregunta por productos, precios y stock.</p>
       </div>
-      <div className="min-h-[16rem] max-h-[32rem] space-y-3 overflow-y-auto rounded-[var(--catalog-radius)] bg-gray-50 p-3" ref={messageListRef}>
+      <div className="min-h-[16rem] max-h-[32rem] space-y-2 overflow-y-auto rounded-[var(--catalog-radius)] bg-[var(--catalog-surface-muted)] p-3" ref={messageListRef}>
         {messages.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
             className={
               message.role === "customer"
-                ? "ml-auto w-fit max-w-[90%] rounded-[var(--catalog-radius)] p-3 text-sm text-white"
-                : "w-fit max-w-[90%] rounded-[var(--catalog-radius)] bg-white p-3 text-sm text-gray-800 shadow-sm"
+                ? "ml-auto w-fit max-w-[90%] rounded-[var(--catalog-radius)] px-3 py-2 text-sm text-white"
+                : "w-fit max-w-[90%] rounded-[var(--catalog-radius)] bg-[var(--catalog-surface)] px-3 py-2 text-sm text-[var(--catalog-text)] shadow-sm"
             }
             style={
               message.role === "customer"
@@ -236,7 +239,12 @@ export function StoreChat({
                 : { borderRadius: buttonRadius }
             }
           >
-            {message.content}
+            <span>{message.content}</span>
+            {message.role === "ai" && message.sources?.length ? (
+              <div className="mt-2">
+                <AiSourcesList sources={message.sources} compact />
+              </div>
+            ) : null}
           </div>
         ))}
         {loading && (
@@ -245,9 +253,9 @@ export function StoreChat({
           </div>
         )}
       </div>
-      <form onSubmit={handleSubmit} className="mt-3 space-y-3" noValidate aria-label="Formulario de chat con la tienda">
+      <form onSubmit={handleSubmit} className="mt-3 space-y-2" noValidate aria-label="Formulario de chat con la tienda">
         <div>
-          <label htmlFor="store-ai-message" className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-gray-400">
+          <label htmlFor="store-ai-message" className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-[var(--catalog-text-muted)]">
             Mensaje para la IA
           </label>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -264,14 +272,14 @@ export function StoreChat({
                 if (errorMessage === "Escribe tu mensaje para consultar a la IA.") setErrorMessage(null);
               }}
               placeholder="Ej: ¿tienen stock de la polera rosada?"
-              className="min-w-0 flex-1 rounded-[var(--catalog-radius)] border border-black/10 px-4 py-3 text-sm"
+              className="min-w-0 flex-1 rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-surface)] px-3 py-2 text-sm text-[var(--catalog-text)]"
               autoComplete="off"
             />
             <button
               type="submit"
               disabled={loading}
               aria-label="Enviar mensaje al asesor"
-              className="w-full rounded-[var(--catalog-radius)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="w-full rounded-[var(--catalog-radius)] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               style={{ backgroundColor: accentColor, borderRadius: buttonRadius }}
             >
               {loading ? "Consultando..." : "Enviar"}
@@ -279,7 +287,7 @@ export function StoreChat({
           </div>
         </div>
         <label className="block">
-          <span className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-gray-400">WhatsApp opcional</span>
+          <span className="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-[var(--catalog-text-muted)]">WhatsApp opcional</span>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -290,7 +298,7 @@ export function StoreChat({
               }
             }}
             placeholder="Ej: +56 9 1234 5678"
-            className="w-full rounded-[var(--catalog-radius)] border border-black/10 px-4 py-2 text-sm"
+            className="w-full rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-surface)] px-3 py-2 text-sm text-[var(--catalog-text)]"
           />
         </label>
       </form>

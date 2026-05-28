@@ -11,6 +11,7 @@ export type PlanLimitValue = number | Unlimited;
 export type AiAssistantLevel = "basic" | "standard" | "advanced";
 export type AnalyticsLevel = "basic" | "standard" | "advanced";
 export type IntegrationLevel = false | "basic" | "advanced";
+export type CustomThemeLevel = "basic" | "advanced";
 
 export type PlanEntitlements = {
   maxStores: PlanLimitValue;
@@ -18,10 +19,13 @@ export type PlanEntitlements = {
   maxUsersPerStore: PlanLimitValue;
   maxStorageMb: PlanLimitValue;
   maxAiConversationsMonthly: PlanLimitValue;
+  aiRequestsPerMinute: number;
   maxImages: PlanLimitValue;
   maxCategories: PlanLimitValue;
+  customTheme: CustomThemeLevel;
   aiAssistant: AiAssistantLevel;
   advancedAI: boolean;
+  advancedSettings?: boolean;
   analytics: AnalyticsLevel;
   advancedAnalytics: boolean;
   automations: boolean;
@@ -55,6 +59,7 @@ export type PlanLimitKey =
   | "maxUsersPerStore"
   | "maxStorageMb"
   | "maxAiConversationsMonthly"
+  | "aiRequestsPerMinute"
   | "maxImages"
   | "maxCategories";
 

@@ -166,7 +166,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
                 {product.category?.name ?? "Producto"}
               </span>
               {product.discountPercent > 0 && (
-                <span className="rounded-full bg-[var(--catalog-accent)] px-3 py-1 text-xs font-black text-white">-{product.discountPercent}%</span>
+                <span className="rounded-full bg-[var(--catalog-accent)] px-3 py-1 text-xs font-black text-[var(--catalog-accent-text)]">-{product.discountPercent}%</span>
               )}
               {product.featured && <span className="rounded-full bg-black px-3 py-1 text-xs font-black text-white">Destacado</span>}
               {lowStock && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Stock bajo</span>}
@@ -214,7 +214,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
                 productName={product.name}
                 formattedPrice={formattedFinalPrice}
                 storePath={productHref}
-                className="inline-flex min-h-12 items-center justify-center rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-5 text-center text-sm font-black text-white"
+                className="inline-flex min-h-12 items-center justify-center rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-5 text-center text-sm font-black text-[var(--catalog-button-text)]"
                 disabledClassName="inline-flex min-h-12 items-center justify-center rounded-[var(--catalog-radius)] bg-gray-100 px-5 text-center text-sm font-black text-gray-500"
               />
               <AskAiButton

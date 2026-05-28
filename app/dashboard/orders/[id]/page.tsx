@@ -18,32 +18,32 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   if (!order) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl bg-white p-8 print:p-0">
+    <main className="mx-auto max-w-3xl bg-[var(--app-surface)] p-6 print:p-0">
       <div className="mb-6 flex flex-col gap-4 print:hidden">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/dashboard/orders" className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold">Volver</Link>
+          <Link href="/dashboard/orders" className="rounded-2xl border border-[var(--app-border)] px-4 py-2 text-sm font-bold">Volver</Link>
           <div className="flex flex-wrap items-center gap-2">
-            <PrintButton className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-bold" />
+            <PrintButton className="rounded-2xl border border-[var(--app-border)] px-4 py-2 text-sm font-bold" />
             <LearningLink href="/dashboard/learning#ventas">Cómo gestionar pedidos</LearningLink>
           </div>
         </div>
-        <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-          <p className="font-semibold">Consejo:</p>
+        <div className="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-sm text-[var(--app-text-muted)]">
+          <p className="font-semibold text-[var(--app-text)]">Consejo:</p>
           <p className="mt-2">Actualiza el estado del pedido cuando confirmes preparación, envío o entrega. Esto ayuda a tu equipo a saber qué sigue.</p>
         </div>
       </div>
       <section className="border-b pb-6">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-black uppercase tracking-[0.25em] text-gray-400">Pedido</p>
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-[var(--app-text-muted)]">Pedido</p>
           <HelpTooltip description="Este pedido se creó desde una cotización aceptada. Mantén el estado actualizado para el equipo de despacho." />
         </div>
         <h1 className="mt-2 text-4xl font-black">{business.name}</h1>
-        <p className="mt-2 text-gray-500">#{order.id.slice(-6).toUpperCase()} · {order.createdAt.toLocaleDateString("es-CL")} · {order.status}</p>
+        <p className="mt-2 text-[var(--app-text-muted)]">#{order.id.slice(-6).toUpperCase()} · {order.createdAt.toLocaleDateString("es-CL")} · {order.status}</p>
       </section>
       <section className="border-b py-6">
-        <p className="text-sm font-black text-gray-500">Cliente</p>
+        <p className="text-sm font-black text-[var(--app-text-muted)]">Cliente</p>
         <p className="mt-1 font-bold">{order.customer?.name ?? order.customer?.phone ?? "Cliente sin datos"}</p>
-        {order.quote && <p className="text-sm text-gray-500">Desde cotización #{order.quote.id.slice(-6).toUpperCase()}</p>}
+        {order.quote && <p className="text-sm text-[var(--app-text-muted)]">Desde cotización #{order.quote.id.slice(-6).toUpperCase()}</p>}
       </section>
       <section className="py-6">
         {order.items.map((item) => (

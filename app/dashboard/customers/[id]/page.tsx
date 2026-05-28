@@ -45,11 +45,11 @@ export default async function CustomerDetailPage({
       />
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/dashboard/customers" className="text-sm font-bold text-gray-500">Volver a clientes</Link>
+          <Link href="/dashboard/customers" className="text-sm font-bold text-[var(--app-text-muted)]">Volver a clientes</Link>
           <h1 className="mt-2 text-4xl font-black">{customer.name ?? customer.phone ?? "Cliente web"}</h1>
-          <p className="mt-2 text-gray-500">{customer.email ?? "Sin email"} · {customer.phone ?? "Sin teléfono"}</p>
+          <p className="mt-2 text-[var(--app-text-muted)]">{customer.email ?? "Sin email"} · {customer.phone ?? "Sin teléfono"}</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-black text-white">
+        <div className="flex items-center gap-2 rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-black text-[var(--app-button-text)]">
           <span>Score {customer.leadScore}</span>
           <HelpTooltip description="El score muestra la prioridad del cliente según su actividad y potencial de compra." />
         </div>
@@ -62,22 +62,22 @@ export default async function CustomerDetailPage({
             <h2 className="text-xl font-black">Ficha CRM</h2>
             <HelpTooltip description="Edita la información de contacto y el estado del cliente para mejorar el seguimiento." />
           </div>
-          <p className="mt-1 text-sm text-gray-500">Guarda los datos del cliente y registra notas internas útiles para el equipo.</p>
+          <p className="mt-1 text-sm text-[var(--app-text-muted)]">Guarda los datos del cliente y registra notas internas útiles para el equipo.</p>
           <form action={updateCustomerAction} className="mt-5 space-y-4">
             <input type="hidden" name="id" value={customer.id} />
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Nombre
               <Input name="name" defaultValue={customer.name ?? ""} placeholder="Nombre" />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Teléfono
               <Input name="phone" defaultValue={customer.phone ?? ""} placeholder="Teléfono" />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Email
               <Input name="email" type="email" defaultValue={customer.email ?? ""} placeholder="Email" />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Estado
               <div className="mt-1 flex items-center gap-2">
                 <Select name="status" defaultValue={customer.status}>
@@ -86,17 +86,17 @@ export default async function CustomerDetailPage({
                 <HelpTooltip description="Actualiza si el cliente está en seguimiento, interesado o cerrado." />
               </div>
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Lead score
-              <span className="mt-1 block text-xs text-gray-500">Valor de 0 a 100 para priorizar este cliente.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Valor de 0 a 100 para priorizar este cliente.</span>
               <Input name="leadScore" type="number" min={0} max={100} defaultValue={customer.leadScore} />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Notas internas
-              <span className="mt-1 block text-xs text-gray-500">Registra detalles que tu equipo debe conocer sobre este cliente.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Registra detalles que tu equipo debe conocer sobre este cliente.</span>
               <Textarea name="notes" defaultValue={customer.notes ?? ""} placeholder="Notas internas" rows={6} />
             </label>
-            <button className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white">Guardar cliente</button>
+            <button className="w-full rounded-2xl bg-[var(--app-primary)] px-4 py-3 font-bold text-[var(--app-button-text)]">Guardar cliente</button>
           </form>
         </Card>
 
@@ -105,16 +105,16 @@ export default async function CustomerDetailPage({
             <h2 className="text-xl font-black">Conversaciones</h2>
             <div className="mt-4 space-y-3">
               {customer.conversations.map((conversation) => (
-                <div key={conversation.id} className="rounded-2xl bg-gray-50 p-4">
+                <div key={conversation.id} className="rounded-2xl bg-[var(--app-surface-muted)] p-3">
                   <p className="text-sm font-black">{conversation.channel} · {conversation.status} · {conversation.createdAt.toLocaleDateString("es-CL")}</p>
                   <div className="mt-3 space-y-2">
                     {conversation.messages.map((message) => (
-                      <p key={message.id} className="text-sm text-gray-600"><strong>{message.senderType}:</strong> {message.content}</p>
+                      <p key={message.id} className="text-sm text-[var(--app-text-muted)]"><strong>{message.senderType}:</strong> {message.content}</p>
                     ))}
                   </div>
                 </div>
               ))}
-              {customer.conversations.length === 0 && <p className="text-sm text-gray-500">Sin conversaciones.</p>}
+              {customer.conversations.length === 0 && <p className="text-sm text-[var(--app-text-muted)]">Sin conversaciones.</p>}
             </div>
           </Card>
 
@@ -122,12 +122,12 @@ export default async function CustomerDetailPage({
             <h2 className="text-xl font-black">Cotizaciones</h2>
             <div className="mt-4 space-y-3">
               {customer.quotes.map((quote) => (
-                <Link key={quote.id} href={`/dashboard/quotes/${quote.id}`} className="flex justify-between rounded-2xl bg-gray-50 p-4 text-sm">
+                <Link key={quote.id} href={`/dashboard/quotes/${quote.id}`} className="flex justify-between rounded-2xl bg-[var(--app-surface-muted)] p-3 text-sm">
                   <span className="font-bold">#{quote.id.slice(-6).toUpperCase()} · {quote.status}</span>
                   <span className="font-black">{formatCLP(quote.total)}</span>
                 </Link>
               ))}
-              {customer.quotes.length === 0 && <p className="text-sm text-gray-500">Sin cotizaciones.</p>}
+              {customer.quotes.length === 0 && <p className="text-sm text-[var(--app-text-muted)]">Sin cotizaciones.</p>}
             </div>
           </Card>
 
@@ -135,12 +135,12 @@ export default async function CustomerDetailPage({
             <h2 className="text-xl font-black">Pedidos</h2>
             <div className="mt-4 space-y-3">
               {customer.orders.map((order) => (
-                <Link key={order.id} href={`/dashboard/orders/${order.id}`} className="flex justify-between rounded-2xl bg-gray-50 p-4 text-sm">
+                <Link key={order.id} href={`/dashboard/orders/${order.id}`} className="flex justify-between rounded-2xl bg-[var(--app-surface-muted)] p-3 text-sm">
                   <span className="font-bold">#{order.id.slice(-6).toUpperCase()} · {order.status}</span>
                   <span className="font-black">{formatCLP(order.total)}</span>
                 </Link>
               ))}
-              {customer.orders.length === 0 && <p className="text-sm text-gray-500">Sin pedidos.</p>}
+              {customer.orders.length === 0 && <p className="text-sm text-[var(--app-text-muted)]">Sin pedidos.</p>}
             </div>
           </Card>
         </div>

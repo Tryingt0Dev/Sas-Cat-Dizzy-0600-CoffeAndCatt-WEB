@@ -17,6 +17,19 @@ const allowedDevOrigins = isProduction
 const serverActionAllowedOrigins = process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS
   ? process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : undefined;
+// Normalize server action origins: ensure they include a scheme (default to https for bare domains)
+const normalizeOriginValue = (value) => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    const trimmed = value.trim();
+    if (/^localhost(:\d+)?$/i.test(trimmed) || /^\d+\.\d+\.\d+\.\d+(:\d+)?$/.test(trimmed) || /^0\.0\.0\.0(:\d+)?$/.test(trimmed)) {
+      return `http://${trimmed.replace(/:\d+$/, '')}`;
+    }
+    return `https://${trimmed.replace(/:\d+$/, '')}`;
+  }
+};
+const serverActionAllowedOriginsNormalized = serverActionAllowedOrigins ? Array.from(new Set(serverActionAllowedOrigins.map(normalizeOriginValue))) : undefined;
 
 // CSP Header strategy:
 // Production: strict CSP without unsafe-eval. Configure CSP_IMG_SRC and CSP_CONNECT_SRC
@@ -28,7 +41,7 @@ const getCspHeader = () => {
   const basePolicy = `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; img-src ${imgSrc}`;
   
   if (isProduction) {
-    return `${basePolicy}; connect-src ${connectSrc}; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'`;
+    return `${basePolicy}; connect-src ${connectSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'`;
   }
 
   return `${basePolicy}; connect-src 'self' http: https: ws: wss:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'`;
@@ -39,7 +52,7 @@ const nextConfig = {
     ? {
         experimental: {
           serverActions: {
-            allowedOrigins: serverActionAllowedOrigins
+            allowedOrigins: serverActionAllowedOriginsNormalized
           }
         }
       }

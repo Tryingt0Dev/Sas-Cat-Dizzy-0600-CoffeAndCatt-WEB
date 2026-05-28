@@ -9,9 +9,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-[minmax(0,1fr)] bg-[var(--app-bg)] lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+    <main className="grid min-h-screen grid-cols-[minmax(0,1fr)] bg-[var(--app-bg)] lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
       <DashboardNav />
-      <section className="min-w-0 p-5 sm:p-6 lg:p-6">{children}</section>
+      <section className="min-w-0 p-4 sm:p-5 lg:p-5">{children}</section>
     </main>
   );
 }

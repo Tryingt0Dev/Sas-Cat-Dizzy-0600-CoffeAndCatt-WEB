@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Prisma } from "@prisma/client";
 import { notFound, permanentRedirect } from "next/navigation";
+import { headers } from 'next/headers';
 import { prisma } from "@/lib/db";
 import { CatalogTemplate, ProductStatus } from "@/lib/enums";
 import { getCatalogThemeStyle, type CatalogBusiness, type CatalogSearchState } from "@/lib/catalog";
@@ -24,17 +25,29 @@ function getOrderBy(sort: string): Prisma.ProductOrderByWithRelationInput[] {
 
 export async function generateMetadata({ params }: StorePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const business = await prisma.business.findFirst({
-    where: { publicSlug: slug, isActive: true },
-    select: {
-      name: true,
-      description: true,
-      seoTitle: true,
-      seoDescription: true,
-      bannerUrl: true,
-      logoUrl: true
-    }
-  });
+  const hdrs = await headers();
+  const hostHeader = hdrs.get('host') || '';
+  const hostname = hostHeader.replace(/:\\d+$/, '');
+
+  // Try to resolve by customDomain first
+  let business = null;
+  if (hostname) {
+    business = await prisma.business.findFirst({ where: { customDomain: hostname, isActive: true }, select: { name: true, description: true, seoTitle: true, seoDescription: true, bannerUrl: true, logoUrl: true } });
+  }
+
+  if (!business) {
+    business = await prisma.business.findFirst({
+      where: { publicSlug: slug, isActive: true },
+      select: {
+        name: true,
+        description: true,
+        seoTitle: true,
+        seoDescription: true,
+        bannerUrl: true,
+        logoUrl: true
+      }
+    });
+  }
 
   if (!business) {
     return {
@@ -81,17 +94,39 @@ export default async function StorePage({ params, searchParams }: StorePageProps
       : {})
   };
 
-  const business = await prisma.business.findFirst({
-    where: { publicSlug: resolvedParams.slug, isActive: true },
-    include: {
-      categories: { orderBy: { name: "asc" } },
-      products: {
-        where: productWhere,
-        include: { category: true },
-        orderBy: getOrderBy(searchState.sort)
+  const _hdrs = await headers();
+  const hostHeader = _hdrs.get('host') || '';
+  const hostname = hostHeader.replace(/:\\d+$/, '');
+
+  // Resolve business by customDomain first, otherwise by publicSlug param
+  let business = null;
+  if (hostname) {
+    business = await prisma.business.findFirst({
+      where: { customDomain: hostname, isActive: true },
+      include: {
+        categories: { orderBy: { name: 'asc' } },
+        products: {
+          where: productWhere,
+          include: { category: true },
+          orderBy: getOrderBy(searchState.sort)
+        }
       }
-    }
-  });
+    });
+  }
+
+  if (!business) {
+    business = await prisma.business.findFirst({
+      where: { publicSlug: resolvedParams.slug, isActive: true },
+      include: {
+        categories: { orderBy: { name: 'asc' } },
+        products: {
+          where: productWhere,
+          include: { category: true },
+          orderBy: getOrderBy(searchState.sort)
+        }
+      }
+    });
+  }
 
   if (!business) {
     const slugHistory = await prisma.businessSlugHistory.findUnique({

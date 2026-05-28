@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// This schema is intended for PostgreSQL/Supabase production deployments.
+// Use the `--schema=prisma/schema_postgres.prisma` flag when running Prisma
+// commands to target Postgres without affecting the local SQLite schema.
+// Example: `prisma migrate deploy --schema=prisma/schema_postgres.prisma`.
+
+// Note: SQLite does not support Prisma enums in Prisma 5.22. Status/template/plan
+// fields are stored as strings and validated with TypeScript + Zod. When
+// migrating to PostgreSQL/Supabase you can convert string fields to native
+// Prisma enums in a migration if desired.
+
+model User {
+  id                       String                   @id @default(cuid())
+  email                    String                   @unique
+  name                     String
+  passwordHash             String
+  role                     String                   @default("USER")
+  saasTheme                String                   @default("violet-premium")
+  themeOnboardingCompleted Boolean                  @default(false)
+  emailVerifiedAt          DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  sessions                 Session[]
+  businesses               Business[]
+  memberships              Membership[]
+  auditLogs                AuditLog[]
+  emailVerificationTokens  EmailVerificationToken[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Business {
+  id                     String                @id @default(cuid())
+  ownerId                String
+  owner                  User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  planId                 String?
+  plan                   Plan?                 @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planType               String                @default("normal")
+  name                   String
+  dashboardTitle         String?
+  dashboardSubtitle      String?
+  slug                   String                @unique
+  publicSlug             String                @unique
+  description            String?
+  logoUrl                String?
+  bannerUrl              String?
+  catalogTemplate        String                @default("MODERN_GRID")
+  primaryColor           String                @default("#111827")
+  secondaryColor         String                @default("#F9FAFB")
+  accentColor            String                @default("#E11D48")
+  backgroundColor        String                @default("#F8FAFC")
+  textColor              String                @default("#111827")
+  catalogPalette         String                @default("minimal-arena")
+  buttonRadius           Int                   @default(18)
+  whatsappNumber         String?
+  instagramUrl           String?
+  businessType           String?
+  address                String?
+  welcomeMessage         String?
+  seoTitle               String?
+  seoDescription         String?
+  seoKeywords            String?
+  showFeaturedCategories Boolean               @default(true)
+  showFeaturedProducts   Boolean               @default(true)
+  currency               String                @default("CLP")
+  isActive               Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  categories             Category[]
+  products               Product[]
+  customers              Customer[]
+  conversations          Conversation[]
+  quotes                 Quote[]
+  orders                 Order[]
+  aiSettings             AiSettings?
+  subscription           Subscription?
+  memberships            Membership[]
+  slugHistory            BusinessSlugHistory[]
+  auditLogs              AuditLog[]
+  customDomain           String?               @unique
+  customDomainVerified   Boolean               @default(false)
+
+  @@index([ownerId])
+  @@index([planId])
+  @@index([publicSlug, isActive])
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  role       String   @default("STORE_OWNER")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+  @@index([userId])
+}
+
+model BusinessSlugHistory {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  slug       String   @unique
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  businessId   String?
+  business     Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Plan {
+  id                        String         @id @default(cuid())
+  type                      String         @unique
+  name                      String
+  description               String         @default("")
+  maxProducts               Int
+  maxImages                 Int            @default(100)
+  maxCategories             Int            @default(10)
+  maxAiConversationsMonthly Int
+  maxUsers                  Int
+  maxMembers                Int            @default(1)
+  maxStores                 Int            @default(1)
+  maxTemplates              Int
+  aiEnabled                 Boolean        @default(true)
+  advancedBranding          Boolean        @default(false)
+  advancedSeoEnabled        Boolean        @default(false)
+  analyticsEnabled          Boolean        @default(false)
+  pageBuilderEnabled        Boolean        @default(false)
+  advancedAttributesEnabled Boolean        @default(false)
+  quotesAndOrders           Boolean        @default(false)
+  customDomain              Boolean        @default(false)
+  supportLevel              String         @default("community")
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+  businesses                Business[]
+  subscriptions             Subscription[]
+}
+
+model Subscription {
+  id                     String    @id @default(cuid())
+  businessId             String    @unique
+  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId                 String
+  plan                   Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status                 String    @default("active")
+  currentPeriodStart     DateTime  @default(now())
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  provider               String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([planId])
+  @@index([status])
+  @@index([providerSubscriptionId])
+}
+
+model PlatformSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isSecret    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+model Category {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  slug       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  products   Product[]
+
+  @@unique([businessId, slug])
+  @@index([businessId])
+  @@index([businessId, createdAt])
+}
+
+model Product {
+  id                 String      @id @default(cuid())
+  businessId         String
+  business           Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId         String?
+  category           Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name               String
+  slug               String
+  sku                String?
+  description        String?
+  price              Int
+  compareAtPrice     Int?
+  costPrice          Int?
+  discountPercent    Int         @default(0)
+  stock              Int         @default(0)
+  minStock           Int         @default(0)
+  imageUrl           String?
+  tags               String?
+  attributesJson     String?
+  variantsJson       String?
+  status             String      @default("ACTIVE")
+  featured           Boolean     @default(false)
+  aiConsultCount     Int         @default(0)
+  productViewCount   Int         @default(0)
+  whatsappClickCount Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  quoteItems         QuoteItem[]
+  orderItems         OrderItem[]
+
+  @@unique([businessId, slug])
+  @@index([businessId])
+  @@index([businessId, sku])
+  @@index([businessId, categoryId])
+  @@index([businessId, status])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  businessId    String
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String?
+  phone         String?
+  email         String?
+  source        String?
+  status        String         @default("NEW")
+  leadScore     Int            @default(0)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+  quotes        Quote[]
+  orders        Order[]
+
+  @@index([businessId])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  channel       String    @default("WEBCHAT")
+  status        String    @default("OPEN")
+  visitorId     String?
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  messages      Message[]
+  quotes        Quote[]
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([visitorId])
+  @@index([status])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     String
+  content        String
+  metadata       String?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model Quote {
+  id             String        @id @default(cuid())
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  status         String        @default("DRAFT")
+  subtotal       Int           @default(0)
+  discount       Int           @default(0)
+  total          Int           @default(0)
+  validUntil     DateTime?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  items          QuoteItem[]
+  order          Order?
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([conversationId])
+  @@index([status])
+}
+
+model QuoteItem {
+  id        String   @id @default(cuid())
+  quoteId   String
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String
+  quantity  Int
+  unitPrice Int
+  subtotal  Int
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  quoteId    String?     @unique
+  quote      Quote?      @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  status     String      @default("PENDING")
+  subtotal   Int         @default(0)
+  discount   Int         @default(0)
+  total      Int         @default(0)
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      OrderItem[]
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String
+  quantity  Int
+  unitPrice Int
+  subtotal  Int
+}
+
+model AiSettings {
+  id                  String   @id @default(cuid())
+  businessId          String   @unique
+  business            Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tone                String   @default("profesional y cercano")
+  instructions        String?
+  fallbackMessage     String   @default("No tengo esa informacion exacta en el catalogo. Te puedo derivar con una persona del equipo.")
+  allowAutoLead       Boolean  @default(true)
+  humanHandoffEnabled Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

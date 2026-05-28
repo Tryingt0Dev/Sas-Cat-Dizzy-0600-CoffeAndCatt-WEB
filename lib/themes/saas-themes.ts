@@ -1,4 +1,5 @@
 export type SaaSTheme = {
+  mode?: "light" | "dark";
   slug: string;
   name: string;
   description: string;
@@ -25,6 +26,7 @@ export type SaaSTheme = {
 export const saasThemes: SaaSTheme[] = [
   {
     slug: "violet-premium",
+    mode: "light",
     name: "Violeta Premium",
     description: "Un panel moderno y elegante con acentos violetas, magenta y cyan para una experiencia fresca y premium.",
     recommendedUsage: "Perfecto para equipos creativos y comercios que buscan una interfaz clara y profesional.",
@@ -62,6 +64,7 @@ export const saasThemes: SaaSTheme[] = [
   },
   {
     slug: "coral-commerce",
+    mode: "light",
     name: "Coral Commerce",
     description: "Un tema luminoso con coral suave, morado y verde vibrante para un panel cálido y cercano.",
     recommendedUsage: "Ideal para marcas de retail, lifestyle y negocios que buscan una identidad amable y activa.",
@@ -99,6 +102,7 @@ export const saasThemes: SaaSTheme[] = [
   },
   {
     slug: "dark-luxury",
+    mode: "dark",
     name: "Dark Luxury",
     description: "Un tema sofisticado y oscuro con detalles dorados, azul vivo y tipografía clara.",
     recommendedUsage: "Perfecto para dashboards premium, negocios boutique y marcas que requieren un estilo elegante.",

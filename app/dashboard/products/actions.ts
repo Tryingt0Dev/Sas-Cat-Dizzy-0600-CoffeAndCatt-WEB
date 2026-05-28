@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getFinalPrice, slugify } from "@/lib/format";
 import { ProductStatus } from "@/lib/enums";
-import { imageUrlBelongsToBusiness, productFormSchema } from "@/lib/validation";
-import { PlanAccessError, assertWithinPlanLimit } from "@/services/plan-guard";
+import { imageUrlBelongsToBusiness, productFormSchema, requiredString } from "@/lib/validation";
+import { assertWithinPlanLimit, PlanAccessError, requireMaxProducts } from "@/services/plan-guard";
 import { assertTenantProduct, resolveTenantCategoryId, TenantAccessError } from "@/services/tenant-guard";
 import { requireStoreAccess } from "@/services/authorization";
 import { writeAuditLog } from "@/services/audit-log";
@@ -90,13 +90,51 @@ async function uniqueProductSlug(businessId: string, name: string, currentProduc
 
 async function assertProductLimit(businessId: string) {
   try {
-    await assertWithinPlanLimit(businessId, "products");
+    await requireMaxProducts(businessId);
   } catch (error) {
     if (error instanceof PlanAccessError) {
       redirect(`/dashboard/products?error=${error.message}`);
     }
     throw error;
   }
+}
+
+async function uniqueCategorySlug(businessId: string, name: string) {
+  const base = slugify(name) || "categoria";
+  let slug = base;
+  let counter = 2;
+
+  while (await prisma.category.findUnique({ where: { businessId_slug: { businessId, slug } } })) {
+    slug = `${base}-${counter++}`;
+  }
+
+  return slug;
+}
+
+export async function createCategoryFromProductAction(formData: FormData) {
+  const { business } = await requireStoreAccess({ permission: "manage_categories" });
+  const parsedName = requiredString.max(80).safeParse(formData.get("name"));
+  if (!parsedName.success) redirect("/dashboard/products?create=1&error=Escribe un nombre para la categoría");
+
+  try {
+    await assertWithinPlanLimit(business.id, "categories");
+  } catch (error) {
+    if (error instanceof PlanAccessError) redirect(`/dashboard/products?create=1&error=${error.message}`);
+    throw error;
+  }
+
+  const category = await prisma.category.create({
+    data: {
+      businessId: business.id,
+      name: parsedName.data,
+      slug: await uniqueCategorySlug(business.id, parsedName.data)
+    }
+  });
+
+  revalidatePath("/dashboard/products");
+  revalidatePath("/dashboard/categories");
+  revalidatePath(`/store/${business.publicSlug}`);
+  redirect(`/dashboard/products?create=1&newCategoryId=${category.id}&success=Categoría creada. Ya está seleccionada en el formulario.`);
 }
 
 export async function createProductAction(formData: FormData) {
@@ -141,7 +179,7 @@ export async function createProductAction(formData: FormData) {
 
   revalidatePath("/dashboard/products");
   revalidatePath(`/store/${business.publicSlug}`);
-  redirect("/dashboard/products?success=Producto creado");
+  redirect("/dashboard/products?success=Producto creado correctamente.");
 }
 
 export async function updateProductAction(formData: FormData) {
@@ -189,6 +227,28 @@ export async function updateProductAction(formData: FormData) {
   revalidatePath("/dashboard/products");
   revalidatePath(`/store/${business.publicSlug}`);
   redirect("/dashboard/products?success=Producto actualizado");
+}
+
+export async function toggleProductVisibilityAction(formData: FormData) {
+  const { business } = await requireStoreAccess({ permission: "manage_products" });
+  const id = String(formData.get("id") || "");
+  if (!id) redirect("/dashboard/products?error=Producto no encontrado");
+
+  try {
+    const product = await assertTenantProduct(business.id, id);
+    const nextStatus = product.status === ProductStatus.ACTIVE ? ProductStatus.DRAFT : ProductStatus.ACTIVE;
+    await prisma.product.updateMany({
+      where: { id, businessId: business.id },
+      data: { status: nextStatus }
+    });
+  } catch (error) {
+    if (error instanceof TenantAccessError) redirect(`/dashboard/products?error=${error.message}`);
+    throw error;
+  }
+
+  revalidatePath("/dashboard/products");
+  revalidatePath(`/store/${business.publicSlug}`);
+  redirect("/dashboard/products?success=Visibilidad actualizada");
 }
 
 export async function duplicateProductAction(formData: FormData) {

@@ -55,17 +55,17 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
         actions={<LearningLink href="/dashboard/learning#ventas">Ver guía de cotizaciones</LearningLink>}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[430px_1fr]">
         <Card>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black">Nueva cotización</h2>
             <HelpTooltip description="Crea una cotización asignándola a un cliente o conversación y agrega los productos que desea comprar." />
           </div>
-          <p className="mt-1 text-sm text-gray-500">Completa los datos del cliente y los productos para enviar una propuesta clara.</p>
+          <p className="mt-1 text-sm text-[var(--app-text-muted)]">Completa los datos del cliente y los productos para enviar una propuesta clara.</p>
           <form action={createQuoteAction} className="mt-5 space-y-4">
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Cliente
-              <span className="mt-1 block text-xs text-gray-500">Selecciona un cliente existente o deja vacío si es un contacto nuevo.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Selecciona un cliente existente o deja vacío si es un contacto nuevo.</span>
               <Select name="customerId" defaultValue="">
                 <option value="">Sin cliente asignado</option>
                 {customers.map((customer) => (
@@ -75,9 +75,9 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
                 ))}
               </Select>
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Conversación
-              <span className="mt-1 block text-xs text-gray-500">Relaciona la cotización con un chat para mantener seguimiento al cliente.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Relaciona la cotización con un chat para mantener seguimiento al cliente.</span>
               <Select name="conversationId" defaultValue="">
                 <option value="">Sin conversación</option>
                 {conversations.map((conversation) => (
@@ -102,22 +102,22 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
                 </div>
               ))}
             </div>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Descuento total
-              <span className="mt-1 block text-xs text-gray-500">Aplica un descuento general para reflejar una oferta o promoción.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Aplica un descuento general para reflejar una oferta o promoción.</span>
               <Input name="discount" type="number" min={0} placeholder="Descuento total" />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Validez
-              <span className="mt-1 block text-xs text-gray-500">Indica hasta cuándo es válida esta cotización.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Indica hasta cuándo es válida esta cotización.</span>
               <Input name="validUntil" type="date" />
             </label>
-            <label className="block text-sm font-semibold text-gray-900">
+            <label className="block text-sm font-semibold text-[var(--app-text)]">
               Notas internas
-              <span className="mt-1 block text-xs text-gray-500">Agrega condiciones, delivery o detalles especiales para tu equipo.</span>
+              <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Agrega condiciones, delivery o detalles especiales para tu equipo.</span>
               <Textarea name="notes" placeholder="Notas internas o condiciones" rows={3} />
             </label>
-            <button className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white">Crear cotización</button>
+            <button className="w-full rounded-2xl bg-[var(--app-primary)] px-4 py-3 font-bold text-[var(--app-button-text)]">Crear cotización</button>
           </form>
         </Card>
 
@@ -133,18 +133,18 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
               <Card key={quote.id}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">#{quote.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--app-text-muted)]">#{quote.id.slice(-6).toUpperCase()}</p>
                     <h2 className="mt-1 text-xl font-black">{quote.customer?.name ?? quote.customer?.phone ?? "Cliente sin datos"}</h2>
-                    <p className="mt-1 text-sm text-gray-500">{quote.items.length} productos · {quote.createdAt.toLocaleDateString("es-CL")}</p>
+                    <p className="mt-1 text-sm text-[var(--app-text-muted)]">{quote.items.length} productos · {quote.createdAt.toLocaleDateString("es-CL")}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black">{formatCLP(quote.total)}</p>
-                    <p className="text-sm text-gray-500">Estado {quote.status}</p>
+                    <p className="text-sm text-[var(--app-text-muted)]">Estado {quote.status}</p>
                   </div>
                 </div>
-                <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100">
+                <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--app-border)]">
                   {quote.items.map((item) => (
-                    <div key={item.id} className="grid grid-cols-[1fr_80px_120px] gap-3 border-b border-gray-100 px-4 py-3 text-sm last:border-b-0">
+                    <div key={item.id} className="grid grid-cols-[1fr_80px_120px] gap-3 border-b border-[var(--app-border)] px-4 py-3 text-sm last:border-b-0">
                       <span className="font-semibold">{item.name}</span>
                       <span>{item.quantity} u.</span>
                       <span className="text-right font-bold">{formatCLP(item.subtotal)}</span>
@@ -157,14 +157,14 @@ export default async function QuotesPage({ searchParams }: { searchParams?: Prom
                     <Select name="status" defaultValue={quote.status} className="w-44">
                       {Object.values(QuoteStatus).map((status) => <option key={status} value={status}>{status}</option>)}
                     </Select>
-                    <button className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white">Guardar</button>
+                    <button className="rounded-2xl bg-[var(--app-primary)] px-4 py-2 text-sm font-bold text-[var(--app-button-text)]">Guardar</button>
                   </form>
-                  <CopyButton text={quoteWhatsappText(quote)} className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold" />
-                  <Link href={`/dashboard/quotes/${quote.id}`} className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold">Vista imprimible</Link>
+                  <CopyButton text={quoteWhatsappText(quote)} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2 text-sm font-bold" />
+                  <Link href={`/dashboard/quotes/${quote.id}`} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2 text-sm font-bold">Vista imprimible</Link>
                   {quote.status === QuoteStatus.ACCEPTED && !quote.order && (
                     <form action={createOrderFromQuoteAction}>
                       <input type="hidden" name="quoteId" value={quote.id} />
-                      <button className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Crear pedido</button>
+                      <button className="rounded-2xl bg-[var(--app-primary)] px-4 py-2 text-sm font-bold text-[var(--app-button-text)]">Crear pedido</button>
                     </form>
                   )}
                 </div>

@@ -60,9 +60,9 @@ export default async function CustomersPage({ searchParams }: { searchParams?: P
         <form className="grid gap-3 md:grid-cols-[1fr_220px_auto]" action="/dashboard/customers">
           <label className="relative block">
             <Input name="q" defaultValue={q} placeholder="Buscar teléfono, email o nombre" />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400">Buscar</span>
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--app-text-muted)]">Buscar</span>
           </label>
-          <label className="block text-sm font-semibold text-gray-900">
+          <label className="block text-sm font-semibold text-[var(--app-text)]">
             Estado
             <div className="mt-1 flex items-center gap-2">
               <Select name="status" defaultValue={validStatus ?? ""}>
@@ -72,14 +72,14 @@ export default async function CustomersPage({ searchParams }: { searchParams?: P
               <HelpTooltip description="Filtra clientes por su estado comercial para priorizar seguimiento." />
             </div>
           </label>
-          <button className="rounded-2xl bg-black px-4 py-2 text-sm font-bold text-white">Filtrar</button>
+          <button className="rounded-2xl bg-[var(--app-primary)] px-4 py-2 text-sm font-bold text-[var(--app-button-text)]">Filtrar</button>
         </form>
       </Card>
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b text-gray-500">
+              <tr className="border-b text-[var(--app-text-muted)]">
                 <th className="py-3">Nombre</th>
                 <th>Teléfono</th>
                 <th>Email</th>
@@ -101,15 +101,15 @@ export default async function CustomersPage({ searchParams }: { searchParams?: P
             </thead>
             <tbody>
               {customers.map((customer) => (
-                <tr key={customer.id} className="border-b border-gray-100">
+                <tr key={customer.id} className="border-b border-[var(--app-border)]">
                   <td className="py-4 font-semibold">{customer.name ?? "Cliente web"}</td>
                   <td>{customer.phone ?? "-"}</td>
                   <td>{customer.email ?? "-"}</td>
-                  <td><span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black">{customer.status}</span></td>
+                  <td><span className="rounded-full bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-black">{customer.status}</span></td>
                   <td>{customer.leadScore}</td>
                   <td>{customer._count.conversations} conv. · {customer._count.quotes} cot. · {customer._count.orders} ped.</td>
                   <td className="text-right">
-                    <Link href={`/dashboard/customers/${customer.id}`} className="font-bold text-black">Ver detalle</Link>
+                    <Link href={`/dashboard/customers/${customer.id}`} className="font-bold text-[var(--app-text)]">Ver detalle</Link>
                   </td>
                 </tr>
               ))}

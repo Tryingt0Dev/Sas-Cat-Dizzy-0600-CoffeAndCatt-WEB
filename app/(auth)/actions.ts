@@ -3,7 +3,8 @@
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { BootstrapSecretError, createSession, destroySession, hashPassword, resolvePublicRegistrationRole, verifyPassword } from "@/lib/auth";
+import { BootstrapSecretError, createSession, destroySession, hashPassword, resolvePublicRegistrationRole, verifyPassword, SELECTED_BUSINESS_COOKIE } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { slugify } from "@/lib/format";
 import { getFreePlan } from "@/lib/plans";
 import { StoreRole } from "@/lib/enums";
@@ -159,6 +160,15 @@ export async function registerAction(formData: FormData) {
   await sendVerificationEmail({ email: user.email, name: user.name, token: verification.token });
 
   await createSession(user.id);
+  // Set selected business cookie so new users land directly in their store dashboard
+  const ck = await cookies();
+  ck.set(SELECTED_BUSINESS_COOKIE, business?.id ?? "", {
+    httpOnly: false,
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict"
+  });
+
   redirect("/dashboard");
 }
 

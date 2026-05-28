@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
 import { parseJsonRecord } from "@/lib/safe-json";
 import { getStoreTypeOptions, getStoreTypeLabel } from "@/lib/store-types";
-import { GLOBAL_ADMIN_ROLES, requireAdminPanelUser } from "@/lib/auth";
+import { GLOBAL_ADMIN_ROLES, requireAdminPanelUser, isPlatformOwner } from "@/lib/auth";
 import { USER_GLOBAL_ROLE_OPTIONS, canManagePlatform } from "@/lib/auth/permissions";
 import { PLAN_SLUGS, formatPlanLimit } from "@/lib/plans";
 import { planDisplayName } from "@/services/plan-guard";
@@ -351,9 +351,16 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
             <h1 className="mt-2 text-4xl font-black text-gray-950">Plataforma CATG</h1>
             <p className="mt-2 max-w-3xl text-gray-500">Control global de tiendas, usuarios, productos, diagnostico operativo y auditoria del SaaS.</p>
           </div>
-          <Link href="/dashboard" className="inline-flex rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
-            Ir al dashboard
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard" className="inline-flex rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-sm">
+              Ir al dashboard
+            </Link>
+            {isPlatformOwner(currentUser) ? (
+              <Link href="/admin/owner" className="inline-flex rounded-2xl bg-black px-4 py-2 text-sm font-black text-white shadow-sm">
+                Panel del dueño
+              </Link>
+            ) : null}
+          </div>
         </div>
         <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

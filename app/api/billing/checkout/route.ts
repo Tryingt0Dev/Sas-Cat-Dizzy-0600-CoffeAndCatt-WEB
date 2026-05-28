@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     let access: Awaited<ReturnType<typeof getStoreAccess>>;
     try {
-      access = await getStoreAccess({ request: req, businessId: payload.data.businessId, permission: "manage_settings" });
+      access = await getStoreAccess({ request: req, businessId: payload.data.businessId, permission: "manage_settings", requireExplicitBusiness: true });
     } catch (error) {
       return accessErrorResponse(error);
     }

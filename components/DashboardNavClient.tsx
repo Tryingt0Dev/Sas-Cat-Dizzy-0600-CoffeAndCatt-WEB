@@ -33,89 +33,126 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
   }, []);
 
   const shareUrl = origin ? `${origin}/store/${business.publicSlug}` : `/store/${business.publicSlug}`;
+  const navGroups = [
+    {
+      title: "General",
+      items: [
+        { label: "Inicio", href: "/dashboard", icon: "H" },
+        { label: "Tienda", href: `/store/${business.publicSlug}`, icon: "T", external: true },
+        { label: "Apariencia", href: "/dashboard/design", icon: "A" }
+      ]
+    },
+    {
+      title: "Operación",
+      items: [
+        { label: "Productos", href: "/dashboard/products", icon: "P" },
+        { label: "Categorías", href: "/dashboard/categories", icon: "C" },
+        { label: "Pedidos", href: "/dashboard/orders", icon: "O" },
+        { label: "Clientes", href: "/dashboard/customers", icon: "U" }
+      ]
+    },
+    {
+      title: "Crecimiento",
+      items: [
+        { label: "IA", href: "/dashboard/conversations", icon: "I" },
+        { label: "Cotizaciones", href: "/dashboard/quotes", icon: "Q" },
+        { label: "Guía", href: "/dashboard/learning", icon: "G" }
+      ]
+    },
+    {
+      title: "Sistema",
+      items: [
+        { label: "Configuración", href: "/dashboard/settings", icon: "S" },
+        { label: "Plan", href: "/settings/billing", icon: "$" }
+      ]
+    }
+  ];
 
-  const baseLink =
-    "flex items-center gap-3 w-full rounded-2xl px-3 py-2 text-sm font-semibold transition duration-200";
-
-  const activeLink = "bg-blue-500/15 text-white border border-blue-500/30 shadow-sm";
-  const inactiveLink = "text-slate-300 hover:bg-white/10 hover:text-white";
+  function isActive(href: string) {
+    if (href.startsWith("/store/")) return false;
+    if (href === "/dashboard") return pathname === href;
+    return pathname === href || pathname?.startsWith(`${href}/`);
+  }
 
   return (
-    <aside className="min-w-0 w-full max-w-[320px] border-r border-[var(--app-border)] bg-[var(--app-sidebar-bg)] p-4 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
-      <div className="mb-5 overflow-hidden rounded-2xl bg-[var(--app-surface)] p-4 shadow-sm ring-1 ring-[var(--app-border)]">
+    <aside className="min-w-0 w-full max-w-[260px] border-r border-[var(--app-border)] bg-[var(--app-sidebar-bg)] p-2.5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+      <div className="mb-3 overflow-hidden rounded-xl bg-[var(--app-sidebar-hover)] p-3 ring-1 ring-[var(--app-border)]">
         <div className="flex items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-[var(--app-primary)] text-sm font-black text-[var(--app-button-text)] shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-primary)] text-xs font-black text-[var(--app-button-text)] shadow-sm">
             {business.name.slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-300">CATG SaaS</p>
-            <h1 className="truncate text-xl font-black text-white">{displayName}</h1>
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[var(--app-sidebar-text-muted)]">Tienda</p>
+            <h1 className="truncate text-sm font-black text-[var(--app-sidebar-text)]">{displayName}</h1>
           </div>
         </div>
-        <p className="mt-3 truncate text-sm text-slate-300">{user.email}</p>
-        <span className="mt-4 inline-flex rounded-full bg-[var(--app-primary)] px-2.5 py-1 text-[0.65rem] font-black text-[var(--app-button-text)] shadow-sm">{planLabel}</span>
+        <p className="mt-2 truncate text-xs text-[var(--app-sidebar-text-muted)]">{user.email}</p>
+        <span className="mt-2 inline-flex rounded-full bg-[var(--app-primary)] px-2 py-0.5 text-[0.6rem] font-black text-[var(--app-button-text)] shadow-sm">{planLabel}</span>
       </div>
 
-      <nav className="space-y-2">
-        {[
-          ["Panel", "/dashboard"],
-          ["Diseño", "/dashboard/design"],
-          ["Productos", "/dashboard/products"],
-          ["Categorías", "/dashboard/categories"],
-          ["Clientes", "/dashboard/customers"],
-          ["Conversaciones", "/dashboard/conversations"],
-          ["Cotizaciones", "/dashboard/quotes"],
-          ["Pedidos", "/dashboard/orders"],
-          ["Guía", "/dashboard/learning"],
-          ["Ajustes", "/dashboard/settings"],
-          ["Plan", "/settings/billing"],
-        ].map(([label, href]) => {
-          const active = pathname === href || pathname?.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={
-                `${baseLink} ` + (active ? `${activeLink}` : `${inactiveLink}`)
-              }
-              aria-current={active ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          );
-        })}
-        {isPlatformAdmin && (
-          <Link
-            href="/admin"
-            className={`${baseLink} rounded-3xl px-4 py-3 ` + inactiveLink}
-          >
-            Superadmin
-          </Link>
-        )}
+      <nav className="space-y-3">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <p className="mb-1 px-2 text-[0.6rem] font-black uppercase tracking-[0.18em] text-[var(--app-sidebar-text-muted)]">{group.title}</p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noreferrer" : undefined}
+                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold transition duration-200 ${
+                      active
+                        ? "bg-[var(--app-sidebar-active)] text-[var(--app-sidebar-active-text)] shadow-sm"
+                        : "text-[var(--app-sidebar-text)] hover:bg-[var(--app-sidebar-hover)]"
+                    }`}
+                  >
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[0.62rem] font-black ${active ? "bg-white/20" : "bg-[var(--app-sidebar-hover)]"}`}>
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="mt-8 rounded-3xl bg-gradient-to-br from-[var(--app-surface)] to-[var(--app-surface-muted)] p-5 shadow-sm ring-1 ring-[var(--app-border)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-300">Catálogo público</p>
-        <p className="mt-2 text-sm text-slate-100 truncate">/store/{business.publicSlug}</p>
-        <div className="mt-4 flex flex-col gap-2">
+      {isPlatformAdmin && (
+        <Link
+          href="/admin"
+          className="mt-3 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[var(--app-sidebar-text)] transition hover:bg-red-500/20 hover:text-red-500"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-500/15 text-[0.62rem] font-black">A</span>
+          Administración
+        </Link>
+      )}
+
+      <div className="mt-4 rounded-lg bg-[var(--app-sidebar-hover)] p-3 ring-1 ring-[var(--app-border)]">
+        <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-[var(--app-sidebar-text-muted)]">Tu tienda</p>
+        <p className="mt-1 truncate text-xs font-mono text-[var(--app-sidebar-text)]">{business.publicSlug}</p>
+        <div className="mt-3 flex flex-col gap-2">
           <Link
             href={`/store/${business.publicSlug}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-[var(--app-primary)] px-3 py-2 text-sm font-black text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--app-primary)] px-3 py-1.5 text-xs font-bold text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
           >
-            Abrir catálogo
+            Ver catálogo
           </Link>
           <CopyButton
             text={shareUrl}
             label="Copiar enlace"
-            className="inline-flex w-full items-center justify-center rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm font-black text-slate-200 transition duration-200 hover:bg-white/5"
+            className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-bold text-[var(--app-text)] transition duration-200 hover:bg-[var(--app-surface-muted)]"
           />
         </div>
       </div>
 
-      <form action={logoutAction} className="mt-6">
-        <button className="w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm font-semibold text-slate-300 transition duration-200 hover:bg-white/5">
+      <form action={logoutAction} className="mt-4">
+        <button className="w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-bold text-[var(--app-text-muted)] transition duration-200 hover:bg-[var(--app-surface-muted)]">
           Cerrar sesión
         </button>
       </form>

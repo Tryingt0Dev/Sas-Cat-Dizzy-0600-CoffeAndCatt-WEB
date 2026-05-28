@@ -5,9 +5,50 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { imageUrlBelongsToBusiness, settingsFormSchema } from "@/lib/validation";
-import { assertAdvancedBrandingAllowed, assertTemplateAllowed, effectivePlanLimits, PlanAccessError } from "@/services/plan-guard";
-import { writeAuditLog } from "@/services/audit-log";
+import { assertAdvancedBrandingAllowed, assertTemplateAllowed, getBusinessPlan, PlanAccessError, requireAdvancedSettings } from "@/services/plan-guard";
+import { auditSuccess } from "@/services/audit-log";
 import { requireStoreAccess } from "@/services/authorization";
+
+function normalizeNullable(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
+function valueChanged(next: string | null | undefined, current: string | null | undefined) {
+  return normalizeNullable(next) !== normalizeNullable(current);
+}
+
+function advancedSettingsChanged(input: {
+  data: {
+    seoTitle: string | null;
+    seoDescription: string | null;
+    seoKeywords: string | null;
+    instructions: string | null;
+    allowAutoLead: boolean;
+    humanHandoffEnabled: boolean;
+  };
+  business: {
+    seoTitle: string | null;
+    seoDescription: string | null;
+    seoKeywords: string | null;
+  };
+  aiSettings: {
+    instructions: string | null;
+    allowAutoLead: boolean;
+    humanHandoffEnabled: boolean;
+  } | null | undefined;
+}) {
+  const seoChanged =
+    valueChanged(input.data.seoTitle, input.business.seoTitle) ||
+    valueChanged(input.data.seoDescription, input.business.seoDescription) ||
+    valueChanged(input.data.seoKeywords, input.business.seoKeywords);
+
+  const aiInstructionsChanged = valueChanged(input.data.instructions, input.aiSettings?.instructions);
+  const aiAutomationChanged =
+    input.data.allowAutoLead !== (input.aiSettings?.allowAutoLead ?? true) ||
+    input.data.humanHandoffEnabled !== (input.aiSettings?.humanHandoffEnabled ?? true);
+
+  return seoChanged || aiInstructionsChanged || aiAutomationChanged;
+}
 
 export async function updateSettingsAction(formData: FormData) {
   const { user, business } = await requireStoreAccess({ permission: "manage_settings" });
@@ -51,11 +92,11 @@ export async function updateSettingsAction(formData: FormData) {
 
   const businessWithPlan = await prisma.business.findUnique({
     where: { id: business.id },
-    include: { plan: true }
+    include: { plan: true, subscription: { include: { plan: true } }, aiSettings: true }
   });
 
   try {
-    const plan = effectivePlanLimits(businessWithPlan?.plan, user);
+    const plan = getBusinessPlan(businessWithPlan, user);
     assertTemplateAllowed(plan, data.catalogTemplate, business.catalogTemplate);
     assertAdvancedBrandingAllowed(plan, {
       catalogTemplate: data.catalogTemplate,
@@ -78,6 +119,12 @@ export async function updateSettingsAction(formData: FormData) {
       logoUrl: business.logoUrl,
       bannerUrl: business.bannerUrl
     });
+    if (advancedSettingsChanged({ data, business, aiSettings: businessWithPlan?.aiSettings })) {
+      await requireAdvancedSettings(business.id, {
+        userId: user.id,
+        attemptedAction: "update_business_settings"
+      });
+    }
   } catch (error) {
     if (error instanceof PlanAccessError) redirect(`/dashboard/settings?error=${error.message}`);
     throw error;
@@ -166,13 +213,14 @@ export async function updateSettingsAction(formData: FormData) {
   revalidatePath("/dashboard/settings");
   revalidatePath(`/store/${business.publicSlug}`);
   revalidatePath(`/store/${data.publicSlug}`);
-  await writeAuditLog({
+  await auditSuccess({
     userId: user.id,
     businessId: business.id,
-    action: publicSlugChanged ? "settings.update_with_public_slug_change" : "settings.update",
-    resourceType: "Business",
-    resourceId: business.id,
+    action: "update_business_settings_success",
+    entityType: "Business",
+    entityId: business.id,
     metadata: {
+      publicSlugChanged,
       oldPublicSlug: publicSlugChanged ? business.publicSlug : undefined,
       newPublicSlug: data.publicSlug,
       catalogTemplate: data.catalogTemplate

@@ -12,7 +12,15 @@ import { requireAdminPanelUser } from "@/lib/auth";
 import { STORE_ROLE_OPTIONS, canManagePlatform } from "@/lib/auth/permissions";
 import { formatPlanLimit, getPlanEntitlements, normalizePlanSlug, planList, SUBSCRIPTION_STATUSES } from "@/lib/plans";
 import { planDisplayName } from "@/services/plan-guard";
-import { addStoreMemberAction, removeStoreMemberAction, toggleBusinessActiveAction, updateStoreMemberRoleAction, updateStorePlanAction } from "../../actions";
+import {
+  addStoreMemberAction,
+  removeStoreMemberAction,
+  toggleBusinessActiveAction,
+  updateStoreMemberRoleAction,
+  updateStorePlanAction,
+  startDomainVerificationAction,
+  verifyDomainAction
+} from "../../actions";
 
 type StoreDetailProps = {
   params: Promise<{ id: string }>;
@@ -289,6 +297,31 @@ export default async function AdminStoreDetailPage({ params, searchParams }: Sto
             <p><strong className="text-gray-900">Instagram:</strong> {business.instagramUrl || "No configurado"}</p>
             <p><strong className="text-gray-900">Direccion:</strong> {business.address || "No configurada"}</p>
             <p><strong className="text-gray-900">SEO:</strong> {business.seoTitle || "Sin titulo"} · {business.seoDescription || "Sin descripcion"}</p>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-xl font-black text-gray-950">Dominios personalizados</h2>
+          <div className="mt-4 space-y-3 text-sm text-gray-600">
+            <p><strong className="text-gray-900">Dominio actual:</strong> {business.customDomain || "No asignado"}</p>
+            <p><strong className="text-gray-900">Verificado:</strong> {business.customDomainVerified ? "Si" : "No"}</p>
+
+            {canManage ? (
+              <div className="mt-2 space-y-2">
+                <form action={startDomainVerificationAction} className="flex items-center gap-2">
+                  <input type="hidden" name="businessId" value={business.id} />
+                  <input name="domain" placeholder="tienda.midominio.com" defaultValue={business.customDomain ?? ""} className="rounded-2xl border border-gray-200 px-4 py-2 text-sm" />
+                  <button className="rounded-2xl bg-black px-4 py-2 text-sm font-black text-white">Iniciar verificacion</button>
+                </form>
+
+                <form action={verifyDomainAction} className="flex items-center gap-2">
+                  <input type="hidden" name="businessId" value={business.id} />
+                  <button className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-black text-gray-700">Verificar DNS</button>
+                </form>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">Tu rol no permite gestionar dominios.</p>
+            )}
           </div>
         </Card>
       </section>

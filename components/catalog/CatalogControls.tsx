@@ -13,7 +13,7 @@ export function CatalogControls({
 
   return (
     <form
-      className={compact ? "grid gap-3 sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-black/10 bg-white/90 p-3 shadow-sm sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]"}
+      className={compact ? "grid gap-2 sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_160px_160px_auto_auto]" : "grid gap-3 rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-surface)]/95 p-3 shadow-sm sm:grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px_200px_auto_auto]"}
       action=""
       method="get"
     >
@@ -22,13 +22,13 @@ export function CatalogControls({
         defaultValue={searchState.q}
         placeholder="Buscar productos"
         aria-label="Buscar productos"
-        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        className="min-h-10 w-full rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-bg)] px-3 py-2 text-sm text-[var(--catalog-text)]"
       />
       <select
         name="category"
         defaultValue={searchState.category}
         aria-label="Categoria"
-        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        className="min-h-10 w-full rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-bg)] px-3 py-2 text-sm text-[var(--catalog-text)]"
       >
         <option value="">Todas las categorias</option>
         {categories.map((category) => (
@@ -41,7 +41,7 @@ export function CatalogControls({
         name="sort"
         defaultValue={searchState.sort}
         aria-label="Ordenar"
-        className="min-h-11 w-full rounded-[var(--catalog-radius)] border border-black/10 bg-white px-4 text-sm text-gray-900"
+        className="min-h-10 w-full rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-bg)] px-3 py-2 text-sm text-[var(--catalog-text)]"
       >
         <option value="featured">Destacados</option>
         <option value="price_asc">Menor precio</option>
@@ -49,11 +49,11 @@ export function CatalogControls({
         <option value="recent">Mas recientes</option>
         <option value="discount">Mayor descuento</option>
       </select>
-      <button className="w-full min-h-11 rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-5 text-sm font-black text-white sm:w-auto">
+      <button className="w-full min-h-10 rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-4 text-sm font-black text-[var(--catalog-button-text)] sm:w-auto">
         Filtrar
       </button>
       {hasFilters && (
-        <a className="inline-flex w-full min-h-11 items-center justify-center rounded-[var(--catalog-radius)] border border-black/10 bg-white px-5 text-sm font-black text-gray-700 sm:w-auto" href="?">
+        <a className="inline-flex w-full min-h-11 items-center justify-center rounded-[var(--catalog-radius)] border border-[var(--catalog-border)] bg-[var(--catalog-surface)] px-5 text-sm font-black text-[var(--catalog-text)] sm:w-auto" href="?">
           Limpiar
         </a>
       )}
