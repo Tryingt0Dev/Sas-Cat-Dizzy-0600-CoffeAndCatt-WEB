@@ -92,11 +92,22 @@ export async function createSession(userId: string) {
   await prisma.session.create({
     data: { token, userId, expiresAt }
   });
+
+  // Detect if the request arrived via HTTPS proxy (Cloudflared, nginx, etc.)
+  let isSecure = process.env.NODE_ENV === "production";
+  try {
+    const { headers: reqHeaders } = await import("next/headers");
+    const forwardedProto = (await reqHeaders()).get("x-forwarded-proto");
+    if (forwardedProto === "https") isSecure = true;
+  } catch {
+    // Not in a request context (e.g. scripts); fallback to NODE_ENV
+  }
+
   const ck = await cookies();
   ck.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    secure: isSecure,
     path: "/",
     expires: expiresAt
   });
@@ -140,6 +151,7 @@ export async function getCurrentUser(req?: Request) {
 export async function requireUser(req?: Request) {
   const user = await getCurrentUser(req);
   if (!user) redirect("/login");
+  if (!user.emailVerifiedAt) redirect("/verify-email-prompt");
   return user;
 }
 

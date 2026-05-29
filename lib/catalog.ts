@@ -119,8 +119,20 @@ export const catalogTemplateOptions = [
   }
 ] as const;
 
-export const defaultProductImage =
-  "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=1200&auto=format&fit=crop";
+// Placeholder local SVG para productos sin imagen. No depende de internet externo.
+const placeholderSvg = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">',
+  '<rect width="400" height="300" fill="#F1F5F9"/>',
+  '<g transform="translate(150,100)">',
+  '<rect x="0" y="0" width="100" height="75" rx="8" fill="#CBD5E1"/>',
+  '<circle cx="80" cy="20" r="12" fill="#94A3B8"/>',
+  '<polygon points="100,75 80,55 95,40 105,50 115,35 120,55 100,75" fill="#94A3B8"/>',
+  '</g>',
+  '<text x="200" y="210" text-anchor="middle" font-family="system-ui,Arial,sans-serif" font-size="14" font-weight="600" fill="#94A3B8">Sin imagen</text>',
+  '</svg>'
+].join("");
+const base64Placeholder = btoa(placeholderSvg);
+export const defaultProductImage = `data:image/svg+xml;base64,${base64Placeholder}`;
 
 export function getCatalogThemeStyle(business: CatalogBusiness): CatalogThemeStyle {
   const palette = getCatalogPaletteBySlug(business.catalogPalette ?? defaultCatalogPaletteSlug);

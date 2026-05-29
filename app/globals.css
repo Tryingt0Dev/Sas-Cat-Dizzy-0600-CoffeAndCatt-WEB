@@ -33,3 +33,12 @@ select {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

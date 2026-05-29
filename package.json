@@ -11,7 +11,7 @@
     "start": "next start -H 0.0.0.0",
     "lint": "eslint . --ext .ts,.tsx,.js --max-warnings=20",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:plans && npm run test:security && npm run test:platform-admin && npm run test:pr02 && npm run test:pr03 && npm run test:pr04 && npm run test:pr05 && npm run test:pr06 && npm run test:pr07 && npm run test:pr071",
+    "test": "npm run test:plans && npm run test:security && npm run test:platform-admin && npm run test:pr02 && npm run test:pr03 && npm run test:pr04 && npm run test:pr05 && npm run test:pr06 && npm run test:pr07 && npm run test:pr071 && npm run test:pr08",
     "test:plans": "tsx scripts/plan-smoke.ts",
     "test:security": "tsx scripts/security-smoke.ts",
     "test:platform-admin": "tsx scripts/platform-admin-access-smoke.ts",
@@ -22,6 +22,7 @@
     "test:pr06": "tsx scripts/pr06-smoke.ts",
     "test:pr07": "tsx scripts/pr07-smoke.ts",
     "test:pr071": "tsx scripts/pr071-smoke.ts",
+    "test:pr08": "tsx scripts/pr08-security-audit-smoke.ts",
     "test:ai-origin": "tsx scripts/ai-origin-smoke.ts",
     "test:unit": "tsx scripts/test-request-origins.ts",
     "db:generate": "prisma generate",
@@ -37,6 +38,7 @@
     "reset": "prisma migrate reset --force && tsx prisma/seed.ts",
     "clean:next": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true }); console.log('.next removed')\"",
     "cleanup:windows": "node scripts/cleanup.js",
+    "cleanup:unverified": "tsx scripts/cleanup-unverified-users.ts",
     "diagrams:all": "node scripts/generate-diagrams.mjs"
   },
   "prisma": {

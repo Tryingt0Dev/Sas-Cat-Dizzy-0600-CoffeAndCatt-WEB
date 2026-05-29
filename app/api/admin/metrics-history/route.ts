@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requirePlatformApiAccess } from "@/lib/api-security";
+
+function normalizeDays(value: string | null) {
+  const days = Number(value) || 30;
+  return Math.min(Math.max(Math.floor(days), 1), 90);
+}
 
 export async function GET(req: Request) {
+  const access = await requirePlatformApiAccess(req, {
+    permission: "billing",
+    action: "platform_admin.metrics_history",
+    rateLimit: { endpoint: "admin:metrics_history", limit: 60, windowMs: 10 * 60 * 1000 }
+  });
+  if (!access.ok) return access.response;
+
   const url = new URL(req.url);
-  const days = Number(url.searchParams.get("days")) || 30;
+  const days = normalizeDays(url.searchParams.get("days"));
   const end = new Date();
   const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 

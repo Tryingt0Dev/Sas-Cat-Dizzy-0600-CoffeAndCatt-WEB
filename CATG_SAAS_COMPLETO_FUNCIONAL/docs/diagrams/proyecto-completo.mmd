@@ -1,0 +1,290 @@
+%%{init: {"theme": "base", "flowchart": {"htmlLabels": true, "nodeSpacing": 80, "rankSpacing": 95, "curve": "basis"}, "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "fontFamily": "Arial, sans-serif", "fontSize": "18px", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+flowchart TD
+    subgraph Users["Usuarios"]
+        direction LR
+        StoreUser["Usuario tienda"]
+        EndCustomer["Cliente final"]
+        PlatformAdmin["Superadmin"]
+    end
+
+    subgraph PublicZone["Zona publica"]
+        direction LR
+        Landing["Landing /"]
+        Pricing["Pricing /pricing"]
+        Login["Login /login"]
+        Register["Registro /register"]
+        PublicStore["Catalogo publico /store/[slug]"]
+    end
+
+    subgraph Auth["Autenticacion"]
+        direction TB
+        AuthActions["Server actions de auth"]
+        AuthZod["Zod login/register"]
+        AuthUser["User"]
+        AuthSession["Session"]
+        AuthCookie["Cookie httpOnly catg_session"]
+    end
+
+    subgraph Tenant["Tenant y plan"]
+        direction LR
+        TenantBusiness["Business"]
+        TenantBusinessId["businessId"]
+        TenantPlan["Plan"]
+        TenantSubscription["Subscription"]
+        TenantAiSettings["AiSettings"]
+    end
+
+    subgraph Dashboard["Dashboard tienda"]
+        direction TB
+        DashboardHome["Dashboard principal"]
+        DashboardRow1["Productos | Categorias | Settings branding + IA"]
+        DashboardRow2["CRM clientes | Conversaciones"]
+        DashboardRow3["Cotizaciones | Pedidos"]
+        ProductsPage["Productos"]
+        CategoriesPage["Categorias"]
+        SettingsPage["Settings branding + IA"]
+        CustomersPage["CRM clientes"]
+        ConversationsPage["Conversaciones"]
+        QuotesPage["Cotizaciones"]
+        OrdersPage["Pedidos"]
+        PrivateActions["Server actions privadas"]
+    end
+
+    subgraph Catalog["Catalogo publico"]
+        direction TB
+        StorePage["app/store/[slug]/page.tsx"]
+        CatalogControls["filtros + busqueda + ordenamiento"]
+        Templates["templates"]
+        ModernGrid["ModernGridCatalog"]
+        BoutiquePremium["BoutiquePremiumCatalog"]
+        FastSales["FastSalesCatalog"]
+        TechPro["TechProCatalog"]
+        ProductCard["ProductCard"]
+        AskAI["Consultar IA"]
+        WhatsApp["WhatsApp"]
+    end
+
+    subgraph ChatAI["Chat IA"]
+        direction TB
+        StoreChat["StoreChat.tsx"]
+        AiRoute["/api/ai/sales-assistant"]
+        AiRouteZod["Zod"]
+        AiRateLimit["rate limit"]
+        ProductSearch["product-search.ts"]
+        DeepSeek["DeepSeek API"]
+        DemoFallback["fallback demo"]
+        AiData["Conversation + Message + Customer"]
+    end
+
+    subgraph Upload["Upload imagenes"]
+        direction TB
+        ImageDropzone["ImageDropzone"]
+        UploadRoute["/api/uploads/image"]
+        MimeSizeValidation["validacion MIME/tamano"]
+        LocalUploads["public/uploads/{businessId}"]
+        ImageTargets["Product.imageUrl | Business.logoUrl | Business.bannerUrl"]
+    end
+
+    subgraph Security["Seguridad transversal"]
+        direction TB
+        TenantGuard["tenant-guard.ts"]
+        BusinessScope["businessId obligatorio"]
+        ZodValidation["validacion Zod"]
+        TypeEnums["enums TypeScript"]
+        AdminGuard["admin guard"]
+        NoCrossTenant["no mezclar datos entre tiendas"]
+    end
+
+    subgraph PrismaLayer["Prisma"]
+        direction TB
+        PrismaClient["Prisma Client"]
+        subgraph IdentityModels["Identidad y tenant"]
+            direction LR
+            DBUser["User"]
+            DBSession["Session"]
+            DBBusiness["Business"]
+            DBPlan["Plan"]
+            DBSubscription["Subscription"]
+            DBAiSettings["AiSettings"]
+        end
+        subgraph CatalogModels["Catalogo y CRM"]
+            direction LR
+            DBCategory["Category"]
+            DBProduct["Product"]
+            DBCustomer["Customer"]
+            DBConversation["Conversation"]
+            DBMessage["Message"]
+        end
+        subgraph CommerceModels["Comercio"]
+            direction LR
+            DBQuote["Quote"]
+            DBQuoteItem["QuoteItem"]
+            DBOrder["Order"]
+            DBOrderItem["OrderItem"]
+        end
+    end
+
+    subgraph SuperadminZone["Superadmin"]
+        direction TB
+        AdminRoute["/admin"]
+        AdminStores["tiendas"]
+        AdminUsers["usuarios"]
+        AdminPlans["planes"]
+        AdminToggle["suspender/reactivar tienda"]
+    end
+
+    StoreUser --> Landing
+    StoreUser --> Login
+    StoreUser --> Register
+    EndCustomer --> PublicStore
+    PlatformAdmin --> AdminRoute
+
+    Landing --> Pricing
+    Pricing --> Register
+    Login --> AuthActions
+    Register --> AuthActions
+    AuthActions --> AuthZod
+    AuthZod --> AuthUser
+    AuthUser --> AuthSession
+    AuthSession --> AuthCookie
+    AuthCookie --> DashboardHome
+    AuthUser --> TenantBusiness
+
+    TenantBusiness --> TenantBusinessId
+    TenantBusiness --> TenantPlan
+    TenantBusiness --> TenantSubscription
+    TenantBusiness --> TenantAiSettings
+
+    DashboardHome --> DashboardRow1
+    DashboardHome --> DashboardRow2
+    DashboardHome --> DashboardRow3
+    DashboardRow1 --> ProductsPage
+    DashboardRow1 --> CategoriesPage
+    DashboardRow1 --> SettingsPage
+    DashboardRow2 --> CustomersPage
+    DashboardRow2 --> ConversationsPage
+    DashboardRow3 --> QuotesPage
+    DashboardRow3 --> OrdersPage
+    ProductsPage --> PrivateActions
+    CategoriesPage --> PrivateActions
+    SettingsPage --> PrivateActions
+    CustomersPage --> PrivateActions
+    ConversationsPage --> PrivateActions
+    QuotesPage --> PrivateActions
+    OrdersPage --> PrivateActions
+
+    PublicStore --> StorePage
+    StorePage --> CatalogControls
+    CatalogControls --> Templates
+    Templates --> ModernGrid
+    Templates --> BoutiquePremium
+    Templates --> FastSales
+    Templates --> TechPro
+    ModernGrid --> ProductCard
+    BoutiquePremium --> ProductCard
+    FastSales --> ProductCard
+    TechPro --> ProductCard
+    ProductCard --> AskAI
+    ProductCard --> WhatsApp
+
+    AskAI --> StoreChat
+    StoreChat --> AiRoute
+    AiRoute --> AiRouteZod
+    AiRoute --> AiRateLimit
+    AiRoute --> ProductSearch
+    AiRoute --> DeepSeek
+    AiRoute --> DemoFallback
+    AiRoute --> AiData
+
+    SettingsPage --> ImageDropzone
+    ProductsPage --> ImageDropzone
+    ImageDropzone --> UploadRoute
+    UploadRoute --> MimeSizeValidation
+    UploadRoute --> LocalUploads
+    LocalUploads --> ImageTargets
+
+    PrivateActions --> TenantGuard
+    UploadRoute --> TenantGuard
+    AiRoute --> BusinessScope
+    StorePage --> BusinessScope
+    TenantGuard --> BusinessScope
+    BusinessScope --> NoCrossTenant
+    ZodValidation --> AuthActions
+    ZodValidation --> PrivateActions
+    ZodValidation --> AiRoute
+    ZodValidation --> UploadRoute
+    TypeEnums --> PrivateActions
+    TypeEnums --> AiRoute
+    AdminGuard --> AdminRoute
+
+    PrivateActions --> PrismaClient
+    StorePage --> PrismaClient
+    AiRoute --> PrismaClient
+    UploadRoute --> PrismaClient
+    TenantBusiness --> PrismaClient
+
+    PrismaClient --> DBUser
+    PrismaClient --> DBSession
+    PrismaClient --> DBBusiness
+    PrismaClient --> DBPlan
+    PrismaClient --> DBSubscription
+    PrismaClient --> DBAiSettings
+    PrismaClient --> DBCategory
+    PrismaClient --> DBProduct
+    PrismaClient --> DBCustomer
+    PrismaClient --> DBConversation
+    PrismaClient --> DBMessage
+    PrismaClient --> DBQuote
+    PrismaClient --> DBQuoteItem
+    PrismaClient --> DBOrder
+    PrismaClient --> DBOrderItem
+
+    DBUser --> DBSession
+    DBUser --> DBBusiness
+    DBBusiness --> DBPlan
+    DBBusiness --> DBSubscription
+    DBBusiness --> DBAiSettings
+    DBBusiness --> DBCategory
+    DBBusiness --> DBProduct
+    DBBusiness --> DBCustomer
+    DBBusiness --> DBConversation
+    DBBusiness --> DBQuote
+    DBBusiness --> DBOrder
+    DBCategory --> DBProduct
+    DBConversation --> DBMessage
+    DBQuote --> DBQuoteItem
+    DBQuote --> DBOrder
+    DBOrder --> DBOrderItem
+
+    AdminRoute --> AdminGuard
+    AdminRoute --> AdminStores
+    AdminRoute --> AdminUsers
+    AdminRoute --> AdminPlans
+    AdminRoute --> AdminToggle
+    AdminStores --> DBBusiness
+    AdminUsers --> DBUser
+    AdminPlans --> DBPlan
+    AdminToggle --> DBBusiness
+
+    classDef actor fill:#ecfeff,stroke:#0891b2,color:#0f172a,stroke-width:1px;
+    classDef route fill:#f8fafc,stroke:#334155,color:#111827,stroke-width:1px;
+    classDef auth fill:#eff6ff,stroke:#2563eb,color:#111827,stroke-width:1px;
+    classDef tenant fill:#f0fdf4,stroke:#16a34a,color:#111827,stroke-width:1px;
+    classDef dashboard fill:#fff7ed,stroke:#ea580c,color:#111827,stroke-width:1px;
+    classDef catalog fill:#fdf2f8,stroke:#db2777,color:#111827,stroke-width:1px;
+    classDef ai fill:#f5f3ff,stroke:#7c3aed,color:#111827,stroke-width:1px;
+    classDef upload fill:#fefce8,stroke:#ca8a04,color:#111827,stroke-width:1px;
+    classDef security fill:#fee2e2,stroke:#dc2626,color:#111827,stroke-width:1px;
+    classDef data fill:#ffffff,stroke:#475569,color:#111827,stroke-width:1px;
+
+    class StoreUser,EndCustomer,PlatformAdmin actor;
+    class Landing,Pricing,Login,Register,PublicStore,StorePage,AdminRoute route;
+    class AuthActions,AuthZod,AuthUser,AuthSession,AuthCookie auth;
+    class TenantBusiness,TenantBusinessId,TenantPlan,TenantSubscription,TenantAiSettings tenant;
+    class DashboardHome,DashboardRow1,DashboardRow2,DashboardRow3,ProductsPage,CategoriesPage,SettingsPage,CustomersPage,ConversationsPage,QuotesPage,OrdersPage,PrivateActions dashboard;
+    class CatalogControls,Templates,ModernGrid,BoutiquePremium,FastSales,TechPro,ProductCard,AskAI,WhatsApp catalog;
+    class StoreChat,AiRoute,AiRouteZod,AiRateLimit,ProductSearch,DeepSeek,DemoFallback,AiData ai;
+    class ImageDropzone,UploadRoute,MimeSizeValidation,LocalUploads,ImageTargets upload;
+    class TenantGuard,BusinessScope,ZodValidation,TypeEnums,AdminGuard,NoCrossTenant security;
+    class PrismaClient,DBUser,DBSession,DBBusiness,DBPlan,DBSubscription,DBCategory,DBProduct,DBCustomer,DBConversation,DBMessage,DBQuote,DBQuoteItem,DBOrder,DBOrderItem,DBAiSettings data;

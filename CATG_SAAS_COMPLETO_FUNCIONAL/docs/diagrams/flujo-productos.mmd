@@ -1,0 +1,18 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Owner as Usuario tienda
+    participant Page as /dashboard/products
+    participant Action as Product server actions
+    participant Guard as tenant-guard
+    participant DB as Prisma
+
+    Owner->>Page: Crea o edita producto
+    Page->>Action: FormData
+    Action->>Action: Valida productFormSchema
+    Action->>DB: getCurrentBusiness()
+    Action->>Guard: Verifica categoria/producto por businessId
+    Guard-->>Action: Recurso valido del tenant
+    Action->>DB: Create, update, duplicate o delete
+    Action->>Page: revalidate dashboard y /store/[slug]
+    Page-->>Owner: Estado actualizado

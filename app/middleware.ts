@@ -16,7 +16,12 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const session = req.cookies.get('catg_session')?.value;
 
-  // If user is not authenticated, redirect to login for admin and dashboard routes.
+  // Do not force redirects for API routes; API handlers should return JSON authorization errors.
+  if (pathname.startsWith('/api')) {
+    return res;
+  }
+
+  // If user is not authenticated, redirect to login for protected UI routes.
   if (!session && (pathname.startsWith('/admin') || pathname.startsWith('/dashboard') || pathname.startsWith('/settings'))) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('error', 'Necesitas iniciar sesión');

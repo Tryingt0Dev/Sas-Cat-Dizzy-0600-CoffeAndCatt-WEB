@@ -1,12 +1,37 @@
 import { prisma } from "@/lib/db";
+import { requirePlatformApiAccess } from "@/lib/api-security";
+
+const MAX_EXPORT_RANGE_DAYS = 366;
+
+function parseDateInput(value: string | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export async function POST(req: Request) {
+  const access = await requirePlatformApiAccess(req, {
+    permission: "billing",
+    action: "platform_admin.export_owner_csv",
+    requireAllowedOrigin: true,
+    rateLimit: { endpoint: "admin:export_owner_csv", limit: 10, windowMs: 15 * 60 * 1000 }
+  });
+  if (!access.ok) return access.response;
+
   const form = await req.formData();
   const startStr = form.get("start")?.toString();
   const endStr = form.get("end")?.toString();
 
-  const start = startStr ? new Date(startStr) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const end = endStr ? new Date(endStr) : new Date();
+  const start = parseDateInput(startStr) ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const end = parseDateInput(endStr) ?? new Date();
+  if (start > end) {
+    return Response.json({ ok: false, error: "El rango de fechas no es valido." }, { status: 400 });
+  }
+
+  const rangeMs = end.getTime() - start.getTime();
+  if (rangeMs > MAX_EXPORT_RANGE_DAYS * 24 * 60 * 60 * 1000) {
+    return Response.json({ ok: false, error: "El rango maximo de exportacion es de 366 dias." }, { status: 400 });
+  }
 
   const businesses = await prisma.business.findMany({
     include: { owner: { select: { email: true } }, subscription: { include: { plan: true } } },

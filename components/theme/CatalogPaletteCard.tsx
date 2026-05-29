@@ -8,16 +8,16 @@ export function CatalogPaletteCard({
   actionLabel,
   selectedActionLabel = "Usar esta paleta",
   disableSelected,
-  onSelectName,
-  value
+  disabled,
+  onSelect
 }: {
   palette: CatalogPalette;
   selected?: boolean;
   actionLabel: string;
   selectedActionLabel?: string;
   disableSelected?: boolean;
-  onSelectName: string;
-  value: string;
+  disabled?: boolean;
+  onSelect: () => void;
 }) {
   const paletteCardStyle: CSSProperties = {
     borderColor: selected ? palette.colors.accent : "var(--app-border)"
@@ -85,10 +85,9 @@ export function CatalogPaletteCard({
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold text-[var(--app-text-muted)]">{selected ? "Aplicada al catálogo" : "Disponible"}</p>
           <button
-            type="submit"
-            name={onSelectName}
-            value={value}
-            disabled={selected && disableSelected}
+            type="button"
+            onClick={onSelect}
+            disabled={(selected && disableSelected) || disabled}
             className="inline-flex h-9 items-center rounded-2xl px-3 text-sm font-black text-[var(--catalog-button-text)] transition disabled:cursor-default disabled:bg-[var(--app-surface-muted)] disabled:text-[var(--app-text-muted)]"
             style={selected && disableSelected ? undefined : { backgroundColor: palette.colors.primary }}
           >

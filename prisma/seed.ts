@@ -41,6 +41,7 @@ async function main() {
   if (!normalPlan || !premiumPlan) throw new Error("No se pudieron crear los planes demo");
 
   await upsertOwner("admin@demo.cl", "Admin Plataforma", passwordHash, UserRole.SUPER_ADMIN);
+  await upsertOwner("felipebustamante003@gmail.com", "Felipe Bustamante", passwordHash, UserRole.SUPER_ADMIN);
   const storeOwner = await upsertOwner("storelamon@demo.cl", "Dueña STORELAMON", passwordHash);
   const secOwner = await upsertOwner("seguridad@demo.cl", "Dueño CATG Seguridad", passwordHash);
 
@@ -92,6 +93,27 @@ async function main() {
         }
       }
     }
+  });
+
+  await prisma.businessSlugHistory.upsert({
+    where: { slug: "storelamon" },
+    update: { businessId: store.id },
+    create: { businessId: store.id, slug: "storelamon" }
+  });
+  await prisma.businessSlugHistory.upsert({
+    where: { slug: "storeleamon" },
+    update: { businessId: store.id },
+    create: { businessId: store.id, slug: "storeleamon" }
+  });
+  await prisma.businessSlugHistory.upsert({
+    where: { slug: "demo" },
+    update: { businessId: store.id },
+    create: { businessId: store.id, slug: "demo" }
+  });
+  await prisma.businessSlugHistory.upsert({
+    where: { slug: "catg-demo" },
+    update: { businessId: store.id },
+    create: { businessId: store.id, slug: "catg-demo" }
   });
 
   const sec = await prisma.business.upsert({

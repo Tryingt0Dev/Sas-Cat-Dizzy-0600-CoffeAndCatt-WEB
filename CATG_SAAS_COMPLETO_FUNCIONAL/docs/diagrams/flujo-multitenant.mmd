@@ -1,0 +1,27 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+flowchart TD
+    User["User"] --> Business["Business tenant"]
+    Business --> Product["Product.businessId"]
+    Business --> Category["Category.businessId"]
+    Business --> Customer["Customer.businessId"]
+    Business --> Conversation["Conversation.businessId"]
+    Conversation --> Message["Message por conversationId"]
+    Business --> Quote["Quote.businessId"]
+    Business --> Order["Order.businessId"]
+    Business --> AiSettings["AiSettings.businessId"]
+
+    PrivatePage["Pagina dashboard"] --> CurrentBusiness["getCurrentBusiness()"]
+    CurrentBusiness --> Business
+    ServerAction["Server action"] --> TenantGuard["services/tenant-guard.ts"]
+    TenantGuard --> Product
+    TenantGuard --> Category
+    TenantGuard --> Customer
+    TenantGuard --> Conversation
+    TenantGuard --> Quote
+    TenantGuard --> Order
+
+    PublicStore["/store/[slug]"] --> ActiveBusiness["Business activo por slug"]
+    ActiveBusiness --> PublicProducts["Productos activos del tenant"]
+    AiRoute["/api/ai/sales-assistant"] --> ActiveBusiness
+    AiRoute --> PublicProducts

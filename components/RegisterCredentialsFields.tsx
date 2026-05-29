@@ -9,6 +9,8 @@ export function RegisterCredentialsFields() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const checks = useMemo(() => evaluatePasswordPolicy(password, email), [email, password]);
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
 
@@ -30,6 +32,7 @@ export function RegisterCredentialsFields() {
 
       <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
         <div className="grid gap-4 md:grid-cols-2">
+          {/* Password field with its own toggle */}
           <label className="block text-sm font-semibold text-gray-900">
             Contraseña
             <span className="mt-1 block text-xs text-gray-500">Crea una contraseña fuerte para proteger tu tienda.</span>
@@ -55,21 +58,34 @@ export function RegisterCredentialsFields() {
             </div>
           </label>
 
+          {/* Confirm password field with its own toggle */}
           <label className="block text-sm font-semibold text-gray-900">
             Confirmar contraseña
             <span className="mt-1 block text-xs text-gray-500">Repite la contraseña para evitar errores de escritura.</span>
-            <Input
-              name="confirmPassword"
-              type={showPassword ? "text" : "password"}
-              placeholder="Repite tu contraseña"
-              autoComplete="new-password"
-              required
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-            />
+            <div className="relative mt-2">
+              <Input
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Repite tu contraseña"
+                autoComplete="new-password"
+                required
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="pr-24"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-100"
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                aria-label={showConfirmPassword ? "Ocultar confirmación" : "Mostrar confirmación"}
+              >
+                {showConfirmPassword ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </label>
         </div>
 
+        {/* Real-time password requirements */}
         <div className="mt-4 grid gap-2 md:grid-cols-2">
           {checks.map((check) => (
             <div key={check.key} className="flex items-center gap-2 text-xs font-semibold text-gray-600">

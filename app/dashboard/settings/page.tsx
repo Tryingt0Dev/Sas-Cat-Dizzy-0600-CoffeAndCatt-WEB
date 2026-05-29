@@ -1,272 +1,513 @@
-import { prisma } from "@/lib/db";
+import Link from "next/link";
 import { Card } from "@/components/Card";
-import { HelpTooltip } from "@/components/HelpTooltip";
-import { ImageDropzone } from "@/components/ImageDropzone";
-import { Input, Textarea } from "@/components/Input";
-import { FormField, FormGrid } from "@/components/FormField";
-import { InfoBox } from "@/components/InfoBox";
-import { LearningLink } from "@/components/LearningLink";
 import { CopyButton } from "@/components/CopyButton";
+import { FormField, FormGrid } from "@/components/FormField";
+import { ImageDropzone } from "@/components/ImageDropzone";
+import { InfoBox } from "@/components/InfoBox";
+import { Input, Select, Textarea } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
 import { PendingSubmitButton } from "@/components/PendingSubmitButton";
-import { SectionGuide } from "@/components/SectionGuide";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusAlert } from "@/components/StatusAlert";
-import { catalogTemplateOptions, getCatalogThemeStyle } from "@/lib/catalog";
+import { StatusBadge } from "@/components/StatusBadge";
+import { getCatalogThemeStyle } from "@/lib/catalog";
+import { prisma } from "@/lib/db";
 import { getStoreTypeOptions } from "@/lib/store-types";
-import { allowedTemplatesForPlan, effectivePlanLimits, planDisplayName } from "@/services/plan-guard";
+import { getBusinessPlan } from "@/services/plan-guard";
 import { requireStoreAccess } from "@/services/authorization";
 import { updateSettingsAction } from "./actions";
-import { LiveThemeColorControls } from "@/components/theme/LiveThemeColorControls";
+import { SettingsUnsavedGuard } from "./SettingsUnsavedGuard";
 
-export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string } | undefined> }) {
+const sectionLinks = [
+  ["General", "#general"],
+  ["Datos públicos", "#datos-publicos"],
+  ["Contacto y redes", "#contacto"],
+  ["Catálogo", "#catalogo"],
+  ["Operación", "#operacion"],
+  ["Seguridad", "#seguridad"],
+  ["Avanzado", "#avanzado"]
+] as const;
+
+const currencyOptions = ["CLP", "USD", "EUR", "MXN", "COP", "PEN", "ARS", "BRL"] as const;
+
+type SettingsSearchParams = {
+  success?: string;
+  error?: string;
+  saved?: string;
+};
+
+function textOrPending(value: string | null | undefined, fallback = "No configurado") {
+  return value?.trim() || fallback;
+}
+
+function instagramLabel(value: string | null | undefined) {
+  if (!value) return "No configurado";
+  try {
+    const url = new URL(value);
+    const user = url.pathname.split("/").filter(Boolean)[0];
+    return user ? `@${user}` : value;
+  } catch {
+    return value;
+  }
+}
+
+function hiddenBoolean(name: string, value: boolean) {
+  return value ? <input type="hidden" name={name} value="on" /> : null;
+}
+
+function LockedFeature({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-black">{title}</p>
+        <StatusBadge variant="warning" className="px-2 py-0.5 text-[0.68rem]">Premium/Business</StatusBadge>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">{description}</p>
+      <Link href="/settings/billing" className="mt-3 inline-flex rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black">
+        Ver planes
+      </Link>
+    </div>
+  );
+}
+
+function ToggleField({ name, label, hint, defaultChecked }: { name: string; label: string; hint: string; defaultChecked: boolean }) {
+  return (
+    <label className="flex items-start gap-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-sm">
+      <input name={name} type="checkbox" defaultChecked={defaultChecked} className="mt-1" />
+      <span>
+        <span className="block font-black text-[var(--app-text)]">{label}</span>
+        <span className="mt-1 block text-xs leading-5 text-[var(--app-text-muted)]">{hint}</span>
+      </span>
+    </label>
+  );
+}
+
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<SettingsSearchParams | undefined> }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const { user, business } = await requireStoreAccess({ permission: "manage_settings" });
+  const { user, business, storeRole } = await requireStoreAccess({ permission: "manage_settings" });
   const [settings, businessWithPlan] = await Promise.all([
     prisma.aiSettings.findUnique({ where: { businessId: business.id } }),
-    prisma.business.findUnique({ where: { id: business.id }, include: { plan: true } })
+    prisma.business.findUnique({
+      where: { id: business.id },
+      include: {
+        owner: { select: { id: true, name: true, email: true, role: true } },
+        plan: true,
+        subscription: { include: { plan: true } },
+        _count: { select: { products: true, categories: true, memberships: true } }
+      }
+    })
   ]);
-  const effectivePlan = effectivePlanLimits(businessWithPlan?.plan, user);
-  const allowedTemplates = allowedTemplatesForPlan(effectivePlan);
-  const currentPlanName = planDisplayName(businessWithPlan?.plan, user);
-  const catalogUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/store/${business.publicSlug}`;
+
+  const effectivePlan = getBusinessPlan(businessWithPlan, user);
+  const canUseAdvancedBranding = Boolean(effectivePlan.advancedBranding);
+  const canUseAdvancedSettings = Boolean(effectivePlan.advancedSettings);
+  const canUseAi = effectivePlan.aiEnabled !== false;
+  const canUseAnalytics = Boolean(effectivePlan.analyticsEnabled);
+  const canUseCustomDomain = Boolean(effectivePlan.customDomain);
+  const canUseQuotes = Boolean(effectivePlan.quotesAndOrders);
+  const catalogPath = `/store/${business.publicSlug}`;
+  const catalogUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${catalogPath}`;
   const themeStyle = getCatalogThemeStyle(business);
+  const memberCount = (businessWithPlan?._count.memberships ?? 0) + 1;
+  const productCount = businessWithPlan?._count.products ?? 0;
+  const categoryCount = businessWithPlan?._count.categories ?? 0;
+  const owner = businessWithPlan?.owner ?? business.owner;
+  const aiTone = settings?.tone ?? "profesional y cercano";
+  const aiFallback = settings?.fallbackMessage ?? "No tengo esa información exacta. Te puedo derivar con una persona.";
+  const aiInstructions = settings?.instructions ?? "";
+  const allowAutoLead = settings?.allowAutoLead ?? true;
+  const humanHandoffEnabled = settings?.humanHandoffEnabled ?? true;
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
-        eyebrow="Configuración"
-        title="Tienda, panel, diseño e IA"
-        description="Define cómo se ve tu catálogo público y cómo se organiza el panel interno para trabajar más rápido."
+        eyebrow="Sistema"
+        title="Configuración de la tienda"
+        description="Administra la información pública, contacto, operación y preferencias internas."
+        className="mb-2"
+        actions={
+          <>
+            <StatusBadge variant="info" className="px-3 py-1">Plan {effectivePlan.name}</StatusBadge>
+            <button
+              type="submit"
+              form="store-settings-form"
+              className="rounded-xl bg-[var(--app-primary)] px-4 py-2 text-xs font-black text-[var(--app-button-text)] shadow-sm transition hover:bg-[var(--app-primary-hover)]"
+            >
+              Guardar cambios
+            </button>
+          </>
+        }
       />
-      <StatusAlert success={resolvedSearchParams?.success} error={resolvedSearchParams?.error} />
-      <SectionGuide
-        eyebrow="Ajustes"
-        title="Organiza tu tienda y marca"
-        description="Ajusta el nombre del panel, la información pública, el catálogo y la IA con ayuda contextual en cada campo." 
-        help="Si no estás seguro de un campo, usa el enlace de ayuda o consulta la guía de configuración." 
-        actions={<LearningLink href="/dashboard/learning#configurar-tienda">Ver guía</LearningLink>}
+      <StatusAlert
+        success={resolvedSearchParams?.saved === "1" ? "Ajustes guardados correctamente." : resolvedSearchParams?.success}
+        error={resolvedSearchParams?.error}
       />
 
-      <form action={updateSettingsAction} className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
-          <SectionCard
-            title="Nombre del panel interno"
-            description="Esto no cambia el nombre público de la tienda; solo mejora la experiencia de tu equipo dentro del dashboard."
-            help="Nombre visible solo dentro del dashboard para que tu equipo reconozca el panel al instante."
-          >
-            <FormGrid>
-              <FormField label="Nombre del panel" hint="Ej: Panel ventas Boutique.">
-                <Input name="dashboardTitle" defaultValue={business.dashboardTitle ?? ""} placeholder={`Panel de ${business.name}`} maxLength={120} />
-              </FormField>
-              <FormField label="Subtítulo interno" hint="Descripción breve para orientar a quien usa el panel.">
-                <Input name="dashboardSubtitle" defaultValue={business.dashboardSubtitle ?? ""} placeholder="Ej: Ventas, inventario y clientes en un solo lugar" maxLength={220} />
-              </FormField>
-            </FormGrid>
-          </SectionCard>
+      <nav aria-label="Secciones de configuración" className="sticky top-0 z-20 -mx-1 overflow-x-auto bg-[var(--app-bg)]/90 px-1 py-2 backdrop-blur">
+        <div className="flex min-w-max gap-2">
+          {sectionLinks.map(([label, href]) => (
+            <a key={href} href={href} className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] transition hover:bg-[var(--app-surface-muted)]">
+              {label}
+            </a>
+          ))}
+        </div>
+      </nav>
 
-          <SectionCard
-            title="Datos públicos"
-            description="Configura la información que verán tus clientes en el catálogo público."
-            help="Estos datos se muestran en tu catálogo público, así que mantenlos claros y actualizados."
-          >
-            <FormGrid>
-              <FormField label="Nombre de la tienda" hint="Este nombre se mostrará en tu tienda pública.">
-                <Input name="name" defaultValue={business.name} placeholder="Nombre tienda" required />
-              </FormField>
-              <FormField label="URL pública" hint="Usa una URL corta y fácil de compartir.">
-                <Input name="publicSlug" defaultValue={business.publicSlug} placeholder="mi-tienda" required />
-              </FormField>
-              <FormField label="Tipo de negocio" hint="Las recomendaciones de IA se adaptarán al tipo de negocio seleccionado.">
-                <select name="businessType" defaultValue={business.businessType ?? ""} className="block w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-input-bg,var(--app-surface))] px-4 py-3 text-sm text-[var(--app-text)] shadow-sm focus:border-[var(--app-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--app-ring)]">
-                  <option value="">Elige un tipo de tienda</option>
-                  {getStoreTypeOptions().map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="WhatsApp" hint="Este enlace se usará para recibir consultas de clientes.">
-                <Input name="whatsappNumber" defaultValue={business.whatsappNumber ?? ""} placeholder="+56 9 1234 5678" />
-              </FormField>
-              <FormField label="Instagram" hint="Enlace opcional para mostrar tu perfil social.">
-                <Input name="instagramUrl" defaultValue={business.instagramUrl ?? ""} placeholder="https://instagram.com/tu-tienda" />
-              </FormField>
-            </FormGrid>
+      <form id="store-settings-form" action={updateSettingsAction} className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <SettingsUnsavedGuard formId="store-settings-form" />
+        <div className="space-y-4">
+          <section id="general" className="scroll-mt-20">
+            <SectionCard
+              title="General"
+              description="Define cómo tu equipo identifica la tienda dentro del panel y cómo la reconocerán tus clientes."
+              help="El nombre interno solo organiza el dashboard; el nombre público aparece en el catálogo."
+            >
+              <FormGrid>
+                <FormField label="Nombre interno del panel" hint="Solo para administración. Ej: Panel ventas Boutique.">
+                  <Input name="dashboardTitle" defaultValue={business.dashboardTitle ?? ""} placeholder={`Panel de ${business.name}`} maxLength={120} />
+                </FormField>
+                <FormField label="Subtítulo interno" hint="Ayuda a tu equipo a entender el propósito de esta tienda.">
+                  <Input name="dashboardSubtitle" defaultValue={business.dashboardSubtitle ?? ""} placeholder="Ventas, inventario y clientes en un solo lugar" maxLength={220} />
+                </FormField>
+                <FormField label="Nombre público de la tienda" hint="Visible para clientes en el catálogo público.">
+                  <Input name="name" defaultValue={business.name} placeholder="Nombre de la tienda" required maxLength={120} />
+                </FormField>
+                <FormField label="Rubro de negocio" hint="La IA y la experiencia pública usan este dato como contexto.">
+                  <Select name="businessType" defaultValue={business.businessType ?? ""}>
+                    <option value="">Selecciona un rubro</option>
+                    {getStoreTypeOptions().map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Select>
+                </FormField>
+              </FormGrid>
 
-            <div className="mt-4 space-y-4">
-              <InfoBox>
-                URL pública: <span className="font-black text-[var(--app-text)]">/store/{business.publicSlug}</span>
-              </InfoBox>
-              <InfoBox title="Enlace directo del catálogo">
-                <p className="break-all">{catalogUrl}</p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <a href={catalogUrl} target="_blank" rel="noreferrer" className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]">
-                    Revisar catálogo
-                  </a>
-                  <CopyButton text={catalogUrl} label="Copiar enlace" className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm font-black text-[var(--app-text)] shadow-sm" />
+              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_220px]">
+                <div className="space-y-3">
+                  {canUseAdvancedBranding ? (
+                    <ImageDropzone name="logoUrl" businessId={business.id} label="Logo o avatar de la tienda" initialUrl={business.logoUrl} />
+                  ) : (
+                    <>
+                      <input type="hidden" name="logoUrl" value={business.logoUrl ?? ""} />
+                      <LockedFeature title="Logo personalizado" description="El logo de tienda forma parte del branding avanzado del catálogo." />
+                    </>
+                  )}
+                  {canUseAdvancedBranding ? (
+                    <ImageDropzone name="bannerUrl" businessId={business.id} label="Banner del catálogo" initialUrl={business.bannerUrl} />
+                  ) : null}
                 </div>
-              </InfoBox>
-              <FormField label="Descripción pública" hint="Texto corto que verán los clientes en tu catálogo.">
-                <Textarea name="description" defaultValue={business.description ?? ""} placeholder="Descripción pública" rows={3} />
-              </FormField>
-              <FormField label="Dirección o zona" hint="Usa esta información si atiendes localmente.">
-                <Input name="address" defaultValue={business.address ?? ""} placeholder="Dirección o zona" />
-              </FormField>
-            </div>
-          </SectionCard>
-
-          <Card>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black">Diseño del catálogo</h2>
-                  <HelpTooltip description="Elige el diseño que mejor muestre tus productos. La seleccion visual queda disponible para todos los planes." />
-                </div>
-                <p className="mt-1 text-sm text-[var(--app-text-muted)]">Plan activo: <span className="font-black text-[var(--app-text)]">{currentPlanName}</span></p>
+                <InfoBox title="Estado de tienda">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge variant={business.isActive ? "success" : "danger"}>{business.isActive ? "Activa" : "Pausada"}</StatusBadge>
+                    <span className="text-xs">Los permisos avanzados y suspensiones se gestionan fuera de esta pantalla.</span>
+                  </div>
+                </InfoBox>
               </div>
-              {effectivePlan.advancedBranding && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Diseño incluido</span>}
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {catalogTemplateOptions.map((template) => (
-                <label
-                  key={template.value}
-                  className={allowedTemplates.includes(template.value)
-                    ? "cursor-pointer rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 hover:border-[var(--app-border)]"
-                    : "rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 opacity-60"}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      name="catalogTemplate"
-                      type="radio"
-                      value={template.value}
-                      defaultChecked={business.catalogTemplate === template.value}
-                      disabled={!allowedTemplates.includes(template.value)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="font-black">
-                        {template.label}
-                        {!allowedTemplates.includes(template.value) && <span className="ml-2 text-xs text-[var(--app-text-muted)]">Plan superior</span>}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--app-text-muted)]">{template.description}</p>
-                      <div className="mt-3 grid grid-cols-3 gap-2">
-                        <span className="h-10 rounded-lg bg-[var(--app-text)]" />
-                        <span className="h-10 rounded-lg bg-[var(--app-surface-muted)]" />
-                        <span className="h-10 rounded-lg" style={{ backgroundColor: business.accentColor }} />
-                      </div>
+            </SectionCard>
+          </section>
+
+          <section id="datos-publicos" className="scroll-mt-20">
+            <SectionCard
+              title="Datos públicos"
+              description="Información visible en el catálogo. Usa textos cortos, compartibles y fáciles de reconocer."
+              help="El slug solo acepta letras, números y guiones. Si cambias la URL, la anterior queda reservada para proteger tu marca."
+            >
+              <FormGrid>
+                <FormField label="Slug / URL pública" hint="Usa una URL corta, sin espacios ni caracteres especiales.">
+                  <Input
+                    name="publicSlug"
+                    defaultValue={business.publicSlug}
+                    placeholder="mi-tienda"
+                    minLength={2}
+                    maxLength={80}
+                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                    required
+                  />
+                </FormField>
+                <FormField label="Vista previa de URL" hint="Se actualizará después de guardar los cambios.">
+                  <div className="flex min-h-[46px] items-center rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 text-sm font-black">
+                    {catalogPath}
+                  </div>
+                </FormField>
+              </FormGrid>
+              <div className="mt-4">
+                <FormField label="Descripción pública" hint="Texto breve que ayuda a los clientes a entender qué vendes.">
+                  <Textarea name="description" defaultValue={business.description ?? ""} placeholder="Ej: Productos seleccionados para regalar, renovar tu casa o comprar rápido por WhatsApp." rows={3} maxLength={600} />
+                </FormField>
+              </div>
+              <InfoBox title="Enlace directo del catálogo" className="mt-4">
+                <p className="break-all text-xs sm:text-sm">{catalogUrl}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a href={catalogUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black">
+                    Ver catálogo
+                  </a>
+                  <CopyButton text={catalogUrl} label="Copiar enlace" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black" />
+                </div>
+              </InfoBox>
+            </SectionCard>
+          </section>
+
+          <section id="contacto" className="scroll-mt-20">
+            <SectionCard
+              title="Contacto y redes"
+              description="Centraliza los canales donde tus clientes pueden pedir información o comprar."
+              help="WhatsApp funciona mejor con código de país. Instagram puede guardarse como usuario o URL."
+            >
+              <FormGrid>
+                <FormField label="WhatsApp" hint="Formato recomendado: +56 9 1234 5678.">
+                  <Input name="whatsappNumber" defaultValue={business.whatsappNumber ?? ""} placeholder="+56 9 1234 5678" maxLength={40} />
+                </FormField>
+                <FormField label="Instagram" hint="Acepta @tu_tienda o https://instagram.com/tu_tienda.">
+                  <Input name="instagramUrl" defaultValue={business.instagramUrl ?? ""} placeholder="@tu_tienda" maxLength={160} />
+                </FormField>
+                <FormField label="Dirección o ubicación" hint="Útil si atiendes en local, comuna o zona de despacho.">
+                  <Input name="address" defaultValue={business.address ?? ""} placeholder="Santiago Centro, Región Metropolitana" maxLength={180} />
+                </FormField>
+                <div className="grid gap-2">
+                  <InfoBox title="Email público y teléfono">
+                    Estos campos todavía no existen en el modelo de tienda. Se mantienen fuera del formulario para no guardar datos incompletos.
+                  </InfoBox>
+                </div>
+              </FormGrid>
+            </SectionCard>
+          </section>
+
+          <section id="catalogo" className="scroll-mt-20">
+            <SectionCard
+              title="Catálogo"
+              description="Configura cómo se presenta la tienda pública y qué bloques se muestran primero."
+              help="Las plantillas bloqueadas no se envían al servidor; el plan actual define cuáles puedes guardar."
+            >
+              <input type="hidden" name="catalogTemplate" value={business.catalogTemplate} />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ToggleField name="showFeaturedCategories" label="Mostrar categorías destacadas" hint="Ayuda a navegar el catálogo cuando hay varias líneas de productos." defaultChecked={business.showFeaturedCategories ?? true} />
+                <ToggleField name="showFeaturedProducts" label="Mostrar productos destacados" hint="Muestra productos principales al inicio de la tienda pública." defaultChecked={business.showFeaturedProducts ?? true} />
+              </div>
+
+              <div className="mt-4">
+                <FormField label="Mensaje principal del catálogo" hint="Texto corto para recibir a tus clientes antes de mostrar productos.">
+                  <Textarea name="welcomeMessage" defaultValue={business.welcomeMessage ?? ""} placeholder="Bienvenido a nuestra tienda. Escríbenos si necesitas ayuda para elegir." rows={3} maxLength={280} />
+                </FormField>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <InfoBox title="Stock y agotados">
+                  No existe todavía una preferencia global para mostrar stock o productos agotados. El catálogo mantiene la lógica actual.
+                </InfoBox>
+                <InfoBox title="Cotizaciones">
+                  {canUseQuotes ? "Tu plan permite cotizaciones y pedidos cuando el módulo esté activo en los flujos comerciales." : "Disponible en Premium/Business cuando necesites cotizaciones y pedidos."}
+                </InfoBox>
+              </div>
+            </SectionCard>
+          </section>
+
+          <section id="operacion" className="scroll-mt-20">
+            <SectionCard
+              title="Operación"
+              description="Preferencias prácticas para atención, moneda y mensajes operativos."
+              help="Solo se muestran campos existentes en el modelo actual. Los demás quedan marcados para implementación futura."
+            >
+              <FormGrid>
+                <FormField label="Moneda del catálogo" hint="Se usa para mostrar precios y ordenar reportes comerciales.">
+                  <Select name="currency" defaultValue={business.currency ?? "CLP"}>
+                    {currencyOptions.map((currency) => (
+                      <option key={currency} value={currency}>{currency}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                <InfoBox title="Horarios y entrega">
+                  Horarios de atención, métodos de entrega/retiro y mensajes de pedido aún no existen como campos de tienda.
+                </InfoBox>
+              </FormGrid>
+            </SectionCard>
+          </section>
+
+          <section id="seguridad" className="scroll-mt-20">
+            <SectionCard
+              title="Seguridad"
+              description="Resumen de acceso de tienda. El admin global no se mezcla con permisos normales de esta tienda."
+              help="Los permisos avanzados se gestionan desde miembros o desde administración global de plataforma."
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                <InfoBox title="Dueño de tienda">
+                  <p className="font-black text-[var(--app-text)]">{owner.name}</p>
+                  <p className="break-all text-xs">{owner.email}</p>
+                </InfoBox>
+                <InfoBox title="Tu rol actual">
+                  <StatusBadge variant="dark">{storeRole}</StatusBadge>
+                </InfoBox>
+                <InfoBox title="Miembros">
+                  <p className="text-2xl font-black text-[var(--app-text)]">{memberCount}</p>
+                  <p className="text-xs">Incluye dueño y usuarios asociados.</p>
+                </InfoBox>
+              </div>
+            </SectionCard>
+          </section>
+
+          <section id="avanzado" className="scroll-mt-20">
+            <SectionCard
+              title="Avanzado"
+              description="SEO, branding, dominio, analytics e IA. Cada bloque respeta los límites del plan activo."
+              help="Los campos bloqueados conservan sus valores actuales y no se envían como cambios nuevos."
+            >
+              <div className="grid gap-4">
+                {canUseAdvancedSettings ? (
+                  <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+                    <h3 className="text-sm font-black">SEO avanzado</h3>
+                    <FormGrid className="mt-3">
+                      <FormField label="Título SEO" hint="Título para buscadores y enlaces compartidos.">
+                        <Input name="seoTitle" defaultValue={business.seoTitle ?? ""} placeholder="Título SEO" maxLength={120} />
+                      </FormField>
+                      <FormField label="Palabras clave" hint="Separadas por comas. Úsalas como guía interna.">
+                        <Input name="seoKeywords" defaultValue={business.seoKeywords ?? ""} placeholder="moda, regalos, ofertas" maxLength={240} />
+                      </FormField>
+                    </FormGrid>
+                    <div className="mt-3">
+                      <FormField label="Descripción SEO" hint="Resumen corto para mejorar cómo se entiende tu catálogo.">
+                        <Textarea name="seoDescription" defaultValue={business.seoDescription ?? ""} placeholder="Descripción para buscadores" rows={3} maxLength={180} />
+                      </FormField>
                     </div>
                   </div>
-                </label>
-              ))}
-            </div>
-            <LiveThemeColorControls
-              initialPrimary={business.primaryColor ?? "#111827"}
-              initialSecondary={business.secondaryColor ?? "#F9A8D4"}
-              initialAccent={business.accentColor ?? "#DB2777"}
-              initialBackground={business.backgroundColor ?? "#FFFFFF"}
-              initialText={business.textColor ?? "#111827"}
-              initialButtonRadius={business.buttonRadius ?? 18}
-            />
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <ImageDropzone name="logoUrl" businessId={business.id} label="Logo de la tienda" initialUrl={business.logoUrl} />
-              <ImageDropzone name="bannerUrl" businessId={business.id} label="Banner / hero del catalogo" initialUrl={business.bannerUrl} />
-            </div>
-          </Card>
+                ) : (
+                  <>
+                    <input type="hidden" name="seoTitle" value={business.seoTitle ?? ""} />
+                    <input type="hidden" name="seoDescription" value={business.seoDescription ?? ""} />
+                    <input type="hidden" name="seoKeywords" value={business.seoKeywords ?? ""} />
+                    <LockedFeature title="SEO avanzado" description="Disponible en planes superiores. Conservamos tu configuración actual sin modificarla." />
+                  </>
+                )}
 
-          <Card>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black">Página pública y SEO</h2>
-              <HelpTooltip description="Ajusta el contenido de tu catálogo público con mensajes clave, SEO y bloques destacados." />
-            </div>
-            <div className="mt-5 grid gap-4">
-              <label className="block text-sm font-semibold text-[var(--app-text)]">
-                Mensaje de bienvenida
-                <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Texto corto que aparece en el inicio del catálogo para conectar con tus clientes.</span>
-                <Textarea name="welcomeMessage" defaultValue={business.welcomeMessage ?? ""} placeholder="Bienvenido a nuestra tienda..." rows={3} />
-              </label>
-              <label className="block text-sm font-semibold text-[var(--app-text)]">
-                Título SEO
-                <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Título que aparecerá en buscadores y redes sociales.</span>
-                <Input name="seoTitle" defaultValue={business.seoTitle ?? ""} placeholder="Título SEO" maxLength={120} />
-              </label>
-              <label className="block text-sm font-semibold text-[var(--app-text)]">
-                Descripción SEO
-                <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Breve descripción que ayuda a mejorar la visibilidad en búsquedas.</span>
-                <Textarea name="seoDescription" defaultValue={business.seoDescription ?? ""} placeholder="Descripción SEO" rows={3} />
-              </label>
-              <label className="block text-sm font-semibold text-[var(--app-text)]">
-                Palabras clave (SEO)
-                <span className="mt-1 block text-xs text-[var(--app-text-muted)]">Separadas por comas, opcionales para mejorar búsquedas.</span>
-                <Input name="seoKeywords" defaultValue={business.seoKeywords ?? ""} placeholder="Ej: moda, zapatos, ofertas" maxLength={240} />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex items-center gap-2 text-sm font-semibold"><input name="showFeaturedCategories" type="checkbox" defaultChecked={business.showFeaturedCategories ?? true} /> Mostrar categorías destacadas</label>
-                <label className="flex items-center gap-2 text-sm font-semibold"><input name="showFeaturedProducts" type="checkbox" defaultChecked={business.showFeaturedProducts ?? true} /> Mostrar productos destacados</label>
+                <input type="hidden" name="primaryColor" value={business.primaryColor ?? "#111827"} />
+                <input type="hidden" name="secondaryColor" value={business.secondaryColor ?? "#F9FAFB"} />
+                <input type="hidden" name="accentColor" value={business.accentColor ?? "#E11D48"} />
+                <input type="hidden" name="backgroundColor" value={business.backgroundColor ?? "#F8FAFC"} />
+                <input type="hidden" name="textColor" value={business.textColor ?? "#111827"} />
+                <input type="hidden" name="buttonRadius" value={business.buttonRadius ?? 18} />
+                <input type="hidden" name="bannerUrl" value={business.bannerUrl ?? ""} />
+
+                {canUseAi ? (
+                  <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+                    <h3 className="text-sm font-black">IA del catálogo</h3>
+                    <FormGrid className="mt-3">
+                      <FormField label="Tono de IA" hint="Define cómo conversa la IA con tus clientes.">
+                        <Input name="tone" defaultValue={aiTone} placeholder="profesional y cercano" required maxLength={160} />
+                      </FormField>
+                      <FormField label="Mensaje si no sabe responder" hint="Respuesta segura cuando falta información.">
+                        <Textarea name="fallbackMessage" defaultValue={aiFallback} rows={3} required maxLength={500} />
+                      </FormField>
+                    </FormGrid>
+                    {canUseAdvancedSettings ? (
+                      <div className="mt-3 grid gap-3">
+                        <FormField label="Instrucciones IA" hint="Qué vender, qué preguntar y qué evitar.">
+                          <Textarea name="instructions" defaultValue={aiInstructions} rows={4} placeholder="Ej: Recomienda productos según presupuesto y deriva a WhatsApp cuando el cliente quiera comprar." />
+                        </FormField>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <ToggleField name="allowAutoLead" label="Crear leads automáticamente" hint="Registra oportunidades cuando la conversación muestra intención de compra." defaultChecked={allowAutoLead} />
+                          <ToggleField name="humanHandoffEnabled" label="Derivar a humano" hint="Activa un mensaje de derivación cuando la IA no tenga suficiente contexto." defaultChecked={humanHandoffEnabled} />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <input type="hidden" name="instructions" value={aiInstructions} />
+                        {hiddenBoolean("allowAutoLead", allowAutoLead)}
+                        {hiddenBoolean("humanHandoffEnabled", humanHandoffEnabled)}
+                        <LockedFeature title="Automatización IA" description="Instrucciones avanzadas, leads automáticos y derivación inteligente están disponibles en Premium/Business." />
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <input type="hidden" name="tone" value={aiTone} />
+                    <input type="hidden" name="fallbackMessage" value={aiFallback} />
+                    <input type="hidden" name="instructions" value={aiInstructions} />
+                    {hiddenBoolean("allowAutoLead", allowAutoLead)}
+                    {hiddenBoolean("humanHandoffEnabled", humanHandoffEnabled)}
+                    <LockedFeature title="IA del catálogo" description="La IA para ventas y automatización está disponible en planes superiores." />
+                  </>
+                )}
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {canUseAnalytics ? (
+                    <InfoBox title="Analytics">Tu plan permite analítica avanzada cuando conectes los reportes del catálogo.</InfoBox>
+                  ) : (
+                    <LockedFeature title="Analytics" description="Métricas avanzadas y reportes de comportamiento están disponibles en Premium/Business." />
+                  )}
+                  {canUseCustomDomain ? (
+                    <InfoBox title="Dominio personalizado">Tu plan permite conectar dominio propio desde el módulo de dominios.</InfoBox>
+                  ) : (
+                    <LockedFeature title="Dominio personalizado" description="Conecta tu propio dominio cuando actualices a un plan compatible." />
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black">Configuración de IA</h2>
-              <HelpTooltip description="Ajusta cómo responde la IA a los clientes desde tu catálogo público." />
-            </div>
-            <div className="mt-4 space-y-4">
-              <Input name="tone" defaultValue={settings?.tone ?? "profesional y cercano"} placeholder="Tono de la IA" required />
-              <Textarea name="instructions" defaultValue={settings?.instructions ?? ""} placeholder="Instrucciones: cómo vender, qué preguntar, qué evitar" rows={5} />
-              <Textarea name="fallbackMessage" defaultValue={settings?.fallbackMessage ?? "No tengo esa informacion exacta. Te puedo derivar con una persona."} placeholder="Mensaje si no sabe responder" rows={3} required />
-              <label className="flex gap-2 text-sm font-semibold"><input name="allowAutoLead" type="checkbox" defaultChecked={settings?.allowAutoLead ?? true} /> Permitir crear leads automáticamente</label>
-              <label className="flex gap-2 text-sm font-semibold"><input name="humanHandoffEnabled" type="checkbox" defaultChecked={settings?.humanHandoffEnabled ?? true} /> Derivar a humano si no sabe</label>
-            </div>
-          </Card>
+            </SectionCard>
+          </section>
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <Card>
-            <h2 className="text-xl font-black">Pasos recomendados</h2>
-            <p className="mt-2 text-sm text-[var(--app-text-muted)]">Sigue estos pasos para completar tu tienda y activar la vista pública más rápido.</p>
-            <ol className="mt-5 space-y-4 text-sm text-[var(--app-text)]">
-              <li className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                <strong className="block font-black">1. Datos básicos</strong>
-                Nombre, URL pública, tipo de negocio y contacto.
-              </li>
-              <li className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                <strong className="block font-black">2. Diseño del catálogo</strong>
-                Elige plantilla, colores, logo y banner.
-              </li>
-              <li className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                <strong className="block font-black">3. Contenido público</strong>
-                Mensaje de bienvenida, SEO y productos destacados.
-              </li>
-              <li className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-                <strong className="block font-black">4. IA y ventas</strong>
-                Ajusta el tono de la IA y el mensaje de fallback.
-              </li>
-            </ol>
-          </Card>
-
-          <Card>
-            <h2 className="text-xl font-black">Vista rápida</h2>
-            <div className="mt-4 overflow-hidden rounded-[var(--catalog-radius)] border border-[var(--catalog-border)]" style={themeStyle}>
-              <div className="bg-[var(--catalog-primary)] p-5 text-[var(--catalog-button-text)]">
-                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-75">Catálogo</p>
-                <h3 className="mt-2 text-2xl font-black">{business.name}</h3>
-                <p className="mt-2 line-clamp-2 text-sm opacity-80">{business.description}</p>
+        <aside className="space-y-4 xl:sticky xl:top-16 xl:self-start">
+          <Card className="p-3">
+            <h2 className="text-base font-black">Vista previa</h2>
+            <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--catalog-border)]" style={themeStyle}>
+              <div className="bg-[var(--catalog-primary)] p-4 text-[var(--catalog-button-text)]">
+                <p className="text-[0.65rem] font-black uppercase tracking-[0.18em] opacity-75">Catálogo público</p>
+                <h3 className="mt-2 text-xl font-black">{business.name}</h3>
+                <p className="mt-1 line-clamp-2 text-xs opacity-80">{textOrPending(business.description, "Agrega una descripción para explicar qué vendes.")}</p>
               </div>
-              <div className="bg-[var(--catalog-bg)] p-5">
-                <div className="rounded-[var(--catalog-radius)] bg-[var(--catalog-surface)] p-4 shadow-sm">
-                  <span className="rounded-full bg-[var(--catalog-accent)] px-3 py-1 text-xs font-black text-[var(--catalog-accent-text)]">Oferta</span>
-                  <p className="mt-3 font-black text-[var(--catalog-text)]">Producto destacado</p>
-                  <p className="text-sm text-[var(--catalog-text-muted)]">Preview de card y botones.</p>
-                  <span className="mt-4 inline-flex rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-4 py-2 text-sm font-black text-[var(--catalog-button-text)]">Consultar</span>
+              <div className="grid gap-2 bg-[var(--catalog-bg)] p-3 text-xs text-[var(--catalog-text)]">
+                <div className="rounded-xl bg-[var(--catalog-surface)] p-3 shadow-sm">
+                  <p className="font-black">Producto destacado</p>
+                  <p className="mt-1 text-[var(--catalog-text-muted)]">{productCount} productos · {categoryCount} categorías</p>
+                  <span className="mt-3 inline-flex rounded-[var(--catalog-radius)] bg-[var(--catalog-primary)] px-3 py-2 font-black text-[var(--catalog-button-text)]">Consultar</span>
                 </div>
               </div>
             </div>
           </Card>
-          <PendingSubmitButton className="w-full rounded-2xl bg-[var(--app-primary)] px-5 py-3 font-bold text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--app-primary-hover)]">
-            Guardar ajustes
-          </PendingSubmitButton>
+
+          <Card className="p-3">
+            <h2 className="text-base font-black">Resumen</h2>
+            <dl className="mt-3 grid gap-2 text-xs">
+              <div className="rounded-xl bg-[var(--app-surface-muted)] p-3">
+                <dt className="font-black text-[var(--app-text)]">Nombre público</dt>
+                <dd className="mt-1 text-[var(--app-text-muted)]">{business.name}</dd>
+              </div>
+              <div className="rounded-xl bg-[var(--app-surface-muted)] p-3">
+                <dt className="font-black text-[var(--app-text)]">URL pública</dt>
+                <dd className="mt-1 break-all text-[var(--app-text-muted)]">{catalogPath}</dd>
+              </div>
+              <div className="rounded-xl bg-[var(--app-surface-muted)] p-3">
+                <dt className="font-black text-[var(--app-text)]">WhatsApp</dt>
+                <dd className="mt-1 text-[var(--app-text-muted)]">{textOrPending(business.whatsappNumber)}</dd>
+              </div>
+              <div className="rounded-xl bg-[var(--app-surface-muted)] p-3">
+                <dt className="font-black text-[var(--app-text)]">Instagram</dt>
+                <dd className="mt-1 text-[var(--app-text-muted)]">{instagramLabel(business.instagramUrl)}</dd>
+              </div>
+              <div className="rounded-xl bg-[var(--app-surface-muted)] p-3">
+                <dt className="font-black text-[var(--app-text)]">Estado de catálogo</dt>
+                <dd className="mt-1"><StatusBadge variant={business.isActive ? "success" : "danger"}>{business.isActive ? "Activo" : "Pausado"}</StatusBadge></dd>
+              </div>
+            </dl>
+          </Card>
+
+          <Card className="p-3">
+            <h2 className="text-base font-black">Guardado seguro</h2>
+            <p className="mt-2 text-xs leading-5 text-[var(--app-text-muted)]">
+              Validamos permisos de tienda en servidor. Si intentas salir con cambios sin guardar, el navegador mostrará una confirmación.
+            </p>
+            <PendingSubmitButton className="mt-3 w-full rounded-xl bg-[var(--app-primary)] px-4 py-3 text-sm font-black text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60">
+              Guardar cambios
+            </PendingSubmitButton>
+          </Card>
         </aside>
+
+        <div className="sticky bottom-3 z-30 col-span-full mx-auto mt-4 w-full max-w-xl rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-3 shadow-lg xl:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-[var(--app-text-muted)]">Revisa los cambios antes de guardar</p>
+            <PendingSubmitButton className="rounded-xl bg-[var(--app-primary)] px-5 py-2.5 text-sm font-black text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60">
+              Guardar cambios
+            </PendingSubmitButton>
+          </div>
+        </div>
       </form>
     </div>
   );

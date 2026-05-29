@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -19,7 +20,7 @@ export async function updateSaaSThemeAction(formData: FormData) {
   const themeSlug = String(formData.get("themeSlug") ?? "violet-premium");
   const parsed = saasThemeSchema.safeParse(themeSlug);
   if (!parsed.success) {
-    redirect("/dashboard/design?error=Tema inválido");
+    redirect("/dashboard/design?error=invalid-theme");
   }
 
   await prisma.user.update({
@@ -34,7 +35,8 @@ export async function updateSaaSThemeAction(formData: FormData) {
     metadata: { scope: "saas_theme", theme: parsed.data }
   });
 
-  redirect("/dashboard/design?success=Tema actualizado");
+  revalidatePath("/", "layout");
+  redirect("/dashboard/design?saved=1");
 }
 
 export async function updateStoreCatalogPaletteAction(formData: FormData) {
@@ -44,10 +46,10 @@ export async function updateStoreCatalogPaletteAction(formData: FormData) {
   const parsedPalette = catalogPaletteSchema.safeParse(paletteSlug);
 
   if (!storeId) {
-    redirect("/dashboard/design?error=Selecciona una tienda válida");
+    redirect("/dashboard/design?error=no-store");
   }
   if (!parsedPalette.success) {
-    redirect("/dashboard/design?error=Paleta inválida");
+    redirect("/dashboard/design?error=invalid-palette");
   }
 
   const access = await requireStoreAccess({ businessId: storeId, permission: "manage_settings" });
@@ -78,5 +80,7 @@ export async function updateStoreCatalogPaletteAction(formData: FormData) {
     metadata: { scope: "catalog_palette", palette: parsedPalette.data }
   });
 
-  redirect("/dashboard/design?success=Paleta del catálogo guardada");
+  revalidatePath(`/store/${access.business.publicSlug}`);
+  revalidatePath("/dashboard/design");
+  redirect("/dashboard/design?saved=1");
 }

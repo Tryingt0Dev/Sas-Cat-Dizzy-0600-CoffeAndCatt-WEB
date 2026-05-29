@@ -1,0 +1,21 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Owner as Usuario tienda
+    participant Dropzone as ImageDropzone
+    participant Upload as /api/uploads/image
+    participant Auth as Auth cookie
+    participant DB as Prisma
+    participant FS as public/uploads
+
+    Owner->>Dropzone: Arrastra o selecciona imagen
+    Dropzone->>Dropzone: Valida JPG, PNG, WEBP y maximo 5MB
+    Dropzone->>Upload: POST FormData file + businessId
+    Upload->>Auth: getCurrentUser()
+    Auth-->>Upload: User autenticado
+    Upload->>DB: Verifica Business.id + ownerId
+    DB-->>Upload: Tenant autorizado
+    Upload->>Upload: Sanitiza nombre y valida ruta
+    Upload->>FS: Guarda en /public/uploads/{businessId}
+    Upload-->>Dropzone: ok + /uploads/{businessId}/archivo
+    Dropzone-->>Owner: Preview y campo oculto actualizado

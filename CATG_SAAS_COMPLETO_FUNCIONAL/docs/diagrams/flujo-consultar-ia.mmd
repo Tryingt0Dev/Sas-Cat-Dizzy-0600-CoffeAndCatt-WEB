@@ -1,0 +1,17 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+sequenceDiagram
+    participant Cliente as Cliente final
+    participant Card as ProductCard
+    participant Ask as AskAiButton
+    participant Window as CustomEvent storechat:ask
+    participant Chat as StoreChat
+    participant API as API IA
+
+    Cliente->>Ask: Click Consultar IA
+    Ask->>Window: Dispatch productId + mensaje contextual
+    Window->>Chat: StoreChat escucha evento
+    Chat->>Chat: Enfoca input y hace scroll al chat
+    Chat->>API: Envia mensaje con productId y conversationId activo
+    API-->>Chat: Respuesta sobre producto del mismo businessId
+    Chat-->>Cliente: Muestra respuesta o error visible

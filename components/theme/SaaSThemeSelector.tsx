@@ -1,37 +1,34 @@
+"use client";
+
 import type { SaaSTheme } from "@/lib/themes/saas-themes";
 import { SaaSThemeCard } from "./SaaSThemeCard";
-
-type ThemeSelectionAction = (formData: FormData) => void | Promise<void>;
 
 export function SaaSThemeSelector({
   themes,
   selectedSlug,
-  action,
   selectedActionLabel,
-  disableSelected
+  disableSelected,
+  onSelect
 }: {
   themes: SaaSTheme[];
   selectedSlug: string;
-  action: ThemeSelectionAction;
   selectedActionLabel?: string;
   disableSelected?: boolean;
+  onSelect?: (slug: string) => void;
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {themes.map((theme) => (
-        <form key={theme.slug} className="min-h-full" action={action}>
-          <input type="hidden" name="themeSlug" value={theme.slug} />
-          <SaaSThemeCard
-            theme={theme}
-            selected={theme.slug === selectedSlug}
-            recommended={theme.slug === "violet-premium"}
-            actionLabel="Seleccionar diseño"
-            selectedActionLabel={selectedActionLabel}
-            disableSelected={disableSelected}
-            onSelectName="themeSlug"
-            value={theme.slug}
-          />
-        </form>
+        <SaaSThemeCard
+          key={theme.slug}
+          theme={theme}
+          selected={theme.slug === selectedSlug}
+          recommended={theme.slug === "violet-premium"}
+          actionLabel="Seleccionar diseño"
+          selectedActionLabel={selectedActionLabel}
+          disableSelected={disableSelected}
+          onSelect={() => onSelect?.(theme.slug)}
+        />
       ))}
     </div>
   );

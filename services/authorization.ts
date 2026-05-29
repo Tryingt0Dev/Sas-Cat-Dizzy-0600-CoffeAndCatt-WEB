@@ -33,6 +33,7 @@ type StoreAccessOptions = {
   activeOnly?: boolean;
   request?: Request;
   requireExplicitBusiness?: boolean;
+  skipEmailVerification?: boolean;
 };
 
 function roleCan(role: StoreRole, permission: StorePermission) {
@@ -116,6 +117,15 @@ export async function getAccessibleBusinesses(options?: { request?: Request; act
 
 export async function getStoreAccess(options?: StoreAccessOptions) {
   const { user, isPlatformAdmin } = await getCurrentUserAccess(options?.request);
+
+  // Require email verification for all routes. Platform admins are exempt.
+  if (!options?.skipEmailVerification && !isPlatformAdmin && !user.emailVerifiedAt) {
+    if (options?.request) {
+      throw new AuthenticationError("Email no verificado");
+    }
+    redirect("/verify-email-prompt");
+  }
+
   const activeOnly = options?.activeOnly ?? true;
   const explicitBusinessId = options?.businessId?.trim() || null;
   const explicitBusinessSlug = options?.businessSlug?.trim() || null;

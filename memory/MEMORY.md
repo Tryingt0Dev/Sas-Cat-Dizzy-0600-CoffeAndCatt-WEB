@@ -1,0 +1,1 @@
+- [Preferencia de idioma](user_language_preference.md) — responder siempre en español, sin traducir comandos, rutas ni código

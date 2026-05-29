@@ -31,6 +31,6 @@ module.exports = [
     rules: {}
   },
   {
-    ignores: ['.next/', 'node_modules/']
+    ignores: ['.next/', 'node_modules/', 'CATG_SAAS_COMPLETO_FUNCIONAL/']
   }
 ];

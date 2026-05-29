@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Prisma } from "@prisma/client";
-import { notFound, permanentRedirect } from "next/navigation";
+import Link from "next/link";
+import { permanentRedirect } from "next/navigation";
 import { headers } from 'next/headers';
 import { prisma } from "@/lib/db";
 import { CatalogTemplate, ProductStatus } from "@/lib/enums";
@@ -9,6 +10,7 @@ import { ModernGridCatalog } from "@/templates/ModernGridCatalog";
 import { BoutiquePremiumCatalog } from "@/templates/BoutiquePremiumCatalog";
 import { FastSalesCatalog } from "@/templates/FastSalesCatalog";
 import { TechProCatalog } from "@/templates/TechProCatalog";
+import { EmptyState } from "@/components/EmptyState";
 
 type StorePageProps = {
   params: Promise<{ slug: string }>;
@@ -32,12 +34,15 @@ export async function generateMetadata({ params }: StorePageProps): Promise<Meta
   // Try to resolve by customDomain first
   let business = null;
   if (hostname) {
-    business = await prisma.business.findFirst({ where: { customDomain: hostname, isActive: true }, select: { name: true, description: true, seoTitle: true, seoDescription: true, bannerUrl: true, logoUrl: true } });
+    business = await prisma.business.findFirst({
+      where: { customDomain: hostname, customDomainVerified: true, isActive: true },
+      select: { name: true, description: true, seoTitle: true, seoDescription: true, bannerUrl: true, logoUrl: true }
+    });
   }
 
   if (!business) {
     business = await prisma.business.findFirst({
-      where: { publicSlug: slug, isActive: true },
+      where: { OR: [{ slug }, { publicSlug: slug }], isActive: true },
       select: {
         name: true,
         description: true,
@@ -47,6 +52,16 @@ export async function generateMetadata({ params }: StorePageProps): Promise<Meta
         logoUrl: true
       }
     });
+  }
+
+  if (!business) {
+    const slugHistory = await prisma.businessSlugHistory.findUnique({
+      where: { slug },
+      include: { business: { select: { name: true, description: true, seoTitle: true, seoDescription: true, bannerUrl: true, logoUrl: true, isActive: true } } }
+    });
+    if (slugHistory?.business?.isActive) {
+      business = slugHistory.business;
+    }
   }
 
   if (!business) {
@@ -102,7 +117,7 @@ export default async function StorePage({ params, searchParams }: StorePageProps
   let business = null;
   if (hostname) {
     business = await prisma.business.findFirst({
-      where: { customDomain: hostname, isActive: true },
+      where: { customDomain: hostname, customDomainVerified: true, isActive: true },
       include: {
         categories: { orderBy: { name: 'asc' } },
         products: {
@@ -116,7 +131,7 @@ export default async function StorePage({ params, searchParams }: StorePageProps
 
   if (!business) {
     business = await prisma.business.findFirst({
-      where: { publicSlug: resolvedParams.slug, isActive: true },
+      where: { OR: [{ slug: resolvedParams.slug }, { publicSlug: resolvedParams.slug }], isActive: true },
       include: {
         categories: { orderBy: { name: 'asc' } },
         products: {
@@ -133,8 +148,22 @@ export default async function StorePage({ params, searchParams }: StorePageProps
       where: { slug: resolvedParams.slug },
       include: { business: { select: { publicSlug: true, isActive: true } } }
     });
-    if (slugHistory?.business.isActive) permanentRedirect(`/store/${slugHistory.business.publicSlug}`);
-    notFound();
+    if (slugHistory?.business?.isActive && slugHistory.business.publicSlug) {
+      permanentRedirect(`/store/${slugHistory.business.publicSlug}`);
+    }
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+        <EmptyState
+          title="Tienda no encontrada"
+          description="La tienda que buscas no existe o ha sido eliminada. Regresa al inicio para ver otras tiendas disponibles."
+          action={
+            <Link href="/" className="rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-dark">
+              Volver al inicio
+            </Link>
+          }
+        />
+      </div>
+    );
   }
 
   const catalogBusiness: CatalogBusiness = {

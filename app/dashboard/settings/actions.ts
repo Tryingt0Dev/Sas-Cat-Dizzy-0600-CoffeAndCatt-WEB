@@ -17,6 +17,10 @@ function valueChanged(next: string | null | undefined, current: string | null | 
   return normalizeNullable(next) !== normalizeNullable(current);
 }
 
+function settingsError(message: string): never {
+  redirect(`/dashboard/settings?error=${encodeURIComponent(message)}`);
+}
+
 function advancedSettingsChanged(input: {
   data: {
     seoTitle: string | null;
@@ -62,6 +66,7 @@ export async function updateSettingsAction(formData: FormData) {
     instagramUrl: formData.get("instagramUrl") || undefined,
     businessType: formData.get("businessType") || undefined,
     address: formData.get("address") || undefined,
+    currency: formData.get("currency") || "CLP",
     welcomeMessage: formData.get("welcomeMessage") || undefined,
     seoTitle: formData.get("seoTitle") || undefined,
     seoDescription: formData.get("seoDescription") || undefined,
@@ -84,10 +89,10 @@ export async function updateSettingsAction(formData: FormData) {
     humanHandoffEnabled: formData.get("humanHandoffEnabled") === "on"
   });
 
-  if (!parsed.success) redirect("/dashboard/settings?error=Revisa los datos de diseño e IA");
+  if (!parsed.success) settingsError(parsed.error.issues[0]?.message ?? "Revisa los datos de configuracion");
   const data = parsed.data;
   if (!imageUrlBelongsToBusiness(data.logoUrl, business.id) || !imageUrlBelongsToBusiness(data.bannerUrl, business.id)) {
-    redirect("/dashboard/settings?error=Las imagenes de branding no pertenecen a esta tienda");
+    settingsError("Las imagenes de branding no pertenecen a esta tienda");
   }
 
   const businessWithPlan = await prisma.business.findUnique({
@@ -137,8 +142,8 @@ export async function updateSettingsAction(formData: FormData) {
       prisma.businessSlugHistory.findUnique({ where: { slug: data.publicSlug }, select: { businessId: true } })
     ]);
 
-    if (existingBusiness && existingBusiness.id !== business.id) redirect("/dashboard/settings?error=Ese slug público ya está en uso");
-    if (existingHistory && existingHistory.businessId !== business.id) redirect("/dashboard/settings?error=Ese slug público ya está reservado por otra tienda");
+    if (existingBusiness && existingBusiness.id !== business.id) settingsError("Ese slug publico ya esta en uso");
+    if (existingHistory && existingHistory.businessId !== business.id) settingsError("Ese slug publico esta reservado por otra tienda");
   }
 
   try {
@@ -166,6 +171,7 @@ export async function updateSettingsAction(formData: FormData) {
           instagramUrl: data.instagramUrl,
           businessType: data.businessType,
           address: data.address,
+          currency: data.currency,
           welcomeMessage: data.welcomeMessage,
           seoTitle: data.seoTitle,
           seoDescription: data.seoDescription,
@@ -211,6 +217,8 @@ export async function updateSettingsAction(formData: FormData) {
   }
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/design");
+  revalidatePath("/", "layout");
   revalidatePath(`/store/${business.publicSlug}`);
   revalidatePath(`/store/${data.publicSlug}`);
   await auditSuccess({
@@ -226,5 +234,5 @@ export async function updateSettingsAction(formData: FormData) {
       catalogTemplate: data.catalogTemplate
     }
   });
-  redirect("/dashboard/settings?success=Ajustes guardados");
+  redirect("/dashboard/settings?saved=1");
 }

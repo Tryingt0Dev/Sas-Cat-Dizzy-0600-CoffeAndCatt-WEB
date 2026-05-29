@@ -1,0 +1,15 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+flowchart TD
+    Admin["Usuario plataforma"] --> AdminRoute["/admin"]
+    AdminRoute --> RequireAdmin["requirePlatformAdmin()"]
+    RequireAdmin --> RoleCheck{"role = PLATFORM_ADMIN?"}
+    RoleCheck -- "No" --> Dashboard["Redirect /dashboard"]
+    RoleCheck -- "Si" --> Panel["Panel superadmin"]
+    Panel --> Stores["Tiendas registradas"]
+    Panel --> Users["Usuarios"]
+    Panel --> Plans["Planes"]
+    Panel --> Metrics["Conteos de productos y conversaciones"]
+    Panel --> Toggle["Suspender/Reactivar"]
+    Toggle --> Action["toggleBusinessActiveAction"]
+    Action --> Business["Business.isActive"]

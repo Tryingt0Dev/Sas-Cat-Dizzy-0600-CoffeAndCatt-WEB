@@ -349,13 +349,13 @@ export async function startDomainVerificationAction(formData: FormData) {
   if (!parsed.success) adminRedirect('/admin', 'Datos invalidos', 'error');
 
   const { businessId, domain } = parsed.data;
-  const token = `myapp-verify-${Math.random().toString(36).slice(2, 10)}`;
+  const token = `catg-domain-verify-${(await import('crypto')).randomBytes(24).toString('hex')}`;
 
   await prisma.business.update({ where: { id: businessId }, data: { customDomain: domain, customDomainVerified: false } });
   await prisma.platformSetting.upsert({ where: { key: `domain-verify-${businessId}` }, update: { value: token }, create: { key: `domain-verify-${businessId}`, value: token } });
 
   revalidatePath(`/admin/stores/${businessId}`);
-  adminRedirect(`/admin/stores/${businessId}`, `Token creado. Instruccion: crear TXT _myapp-verify.${domain}`);
+  adminRedirect(`/admin/stores/${businessId}`, `Token creado. Instruccion: crear TXT _catg-verify.${domain}`);
 }
 
 const domainVerifySchema = z.object({ businessId: z.string().trim().min(1) });
@@ -372,7 +372,12 @@ export async function verifyDomainAction(formData: FormData) {
   // Attempt DNS TXT lookup (may fail in local env)
   try {
     const dns = await import('node:dns');
-    const txts = await dns.promises.resolveTxt(`_myapp-verify.${(await prisma.business.findUnique({ where: { id: businessId }, select: { customDomain: true } }))?.customDomain}`);
+    const customDomain = await prisma.business.findUnique({ where: { id: businessId }, select: { customDomain: true } });
+    if (!customDomain?.customDomain) {
+      adminRedirect(`/admin/stores/${businessId}`, 'La tienda no tiene dominio configurado', 'error');
+    }
+
+    const txts = await dns.promises.resolveTxt(`_catg-verify.${customDomain.customDomain}`);
     const flat = txts.flat().map(String);
     if (flat.includes(setting.value)) {
       await prisma.business.update({ where: { id: businessId }, data: { customDomainVerified: true } });

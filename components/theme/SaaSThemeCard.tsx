@@ -9,8 +9,8 @@ export function SaaSThemeCard({
   actionLabel,
   selectedActionLabel = "Usar este diseño",
   disableSelected,
-  onSelectName,
-  value
+  disabled,
+  onSelect
 }: {
   theme: SaaSTheme;
   selected?: boolean;
@@ -18,8 +18,8 @@ export function SaaSThemeCard({
   actionLabel: string;
   selectedActionLabel?: string;
   disableSelected?: boolean;
-  onSelectName: string;
-  value: string;
+  disabled?: boolean;
+  onSelect: () => void;
 }) {
   const themeCardStyle: CSSProperties = {
     borderColor: selected ? theme.colors.primary : "var(--app-border)"
@@ -86,10 +86,9 @@ export function SaaSThemeCard({
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold">{selected ? "Aplicado a tu panel" : recommended ? "Tema inicial recomendado" : "Disponible"}</p>
           <button
-            type="submit"
-            name={onSelectName}
-            value={value}
-            disabled={selected && disableSelected}
+            type="button"
+            onClick={onSelect}
+            disabled={(selected && disableSelected) || disabled}
             className="inline-flex h-9 items-center rounded-2xl px-3 text-sm font-black text-[var(--app-button-text)] transition disabled:cursor-default disabled:bg-[var(--app-surface-muted)] disabled:text-[var(--app-text-muted)]"
             style={selected && disableSelected ? undefined : { backgroundColor: theme.colors.primary }}
           >

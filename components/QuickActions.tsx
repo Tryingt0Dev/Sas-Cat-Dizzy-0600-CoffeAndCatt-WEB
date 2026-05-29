@@ -26,23 +26,33 @@ export function QuickActions({
   }[columns];
 
   return (
-    <div className={`grid gap-3 ${gridClass}`}>
+    <div className={`grid gap-2 ${gridClass}`}>
       {actions.map((action) => (
         <Link
           key={action.id}
           href={action.href}
           target={action.external ? "_blank" : undefined}
-          className={`rounded-2xl border transition duration-200 ${
+          className={`flex items-center gap-2 rounded-xl border transition duration-200 ${
             action.variant === "primary"
               ? "border-[var(--app-primary)] bg-[var(--app-primary)] text-[var(--app-button-text)] hover:opacity-90"
               : "border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] hover:border-[var(--app-primary)] hover:shadow-sm"
-          } ${compact ? "p-2" : "p-3"}`}
+          } ${compact ? "px-2.5 py-2" : "p-3"}`}
         >
-          {action.icon && <div className={`mb-1 ${compact ? "text-lg" : "text-xl"}`}>{action.icon}</div>}
-          <p className={`font-black ${compact ? "text-xs" : "text-sm"}`}>{action.label}</p>
-          {action.description && !compact && (
-            <p className="text-xs leading-4 text-[var(--app-text-muted)] mt-1">{action.description}</p>
+          {action.icon && (
+            <span className={`flex shrink-0 items-center justify-center rounded-lg text-[0.65rem] font-black ${
+              action.variant === "primary"
+                ? "bg-white/20"
+                : "bg-[var(--app-surface-muted)]"
+            } ${compact ? "h-6 w-6" : "h-7 w-7"}`}>
+              {action.icon}
+            </span>
           )}
+          <span>
+            <p className={`font-black leading-tight ${compact ? "text-xs" : "text-sm"}`}>{action.label}</p>
+            {action.description && !compact && (
+              <p className="text-xs leading-4 text-[var(--app-text-muted)] mt-0.5">{action.description}</p>
+            )}
+          </span>
         </Link>
       ))}
     </div>

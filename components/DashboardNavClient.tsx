@@ -25,11 +25,24 @@ type DashboardNavProps = {
 export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: DashboardNavProps) {
   const pathname = usePathname();
   const [origin, setOrigin] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
   const displayName = business.dashboardTitle || business.name;
   const planLabel = plan.name ? `Plan ${plan.name}` : `Plan ${plan.planType ?? "Standard"}`;
 
   useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     setOrigin(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const shareUrl = origin ? `${origin}/store/${business.publicSlug}` : `/store/${business.publicSlug}`;
@@ -43,10 +56,10 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
       ]
     },
     {
-      title: "Operación",
+      title: "Operacion",
       items: [
         { label: "Productos", href: "/dashboard/products", icon: "P" },
-        { label: "Categorías", href: "/dashboard/categories", icon: "C" },
+        { label: "Categorias", href: "/dashboard/categories", icon: "C" },
         { label: "Pedidos", href: "/dashboard/orders", icon: "O" },
         { label: "Clientes", href: "/dashboard/customers", icon: "U" }
       ]
@@ -56,13 +69,13 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
       items: [
         { label: "IA", href: "/dashboard/conversations", icon: "I" },
         { label: "Cotizaciones", href: "/dashboard/quotes", icon: "Q" },
-        { label: "Guía", href: "/dashboard/learning", icon: "G" }
+        { label: "Guia", href: "/dashboard/learning", icon: "G" }
       ]
     },
     {
       title: "Sistema",
       items: [
-        { label: "Configuración", href: "/dashboard/settings", icon: "S" },
+        { label: "Configuracion", href: "/dashboard/settings", icon: "S" },
         { label: "Plan", href: "/settings/billing", icon: "$" }
       ]
     }
@@ -74,8 +87,8 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
     return pathname === href || pathname?.startsWith(`${href}/`);
   }
 
-  return (
-    <aside className="min-w-0 w-full max-w-[260px] border-r border-[var(--app-border)] bg-[var(--app-sidebar-bg)] p-2.5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+  const sidebarContent = (
+    <>
       <div className="mb-3 overflow-hidden rounded-xl bg-[var(--app-sidebar-hover)] p-3 ring-1 ring-[var(--app-border)]">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-primary)] text-xs font-black text-[var(--app-button-text)] shadow-sm">
@@ -127,7 +140,7 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
           className="mt-3 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[var(--app-sidebar-text)] transition hover:bg-red-500/20 hover:text-red-500"
         >
           <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-500/15 text-[0.62rem] font-black">A</span>
-          Administración
+          Administracion
         </Link>
       )}
 
@@ -141,7 +154,7 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
             rel="noreferrer"
             className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--app-primary)] px-3 py-1.5 text-xs font-bold text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
           >
-            Ver catálogo
+            Ver catalogo
           </Link>
           <CopyButton
             text={shareUrl}
@@ -153,9 +166,64 @@ export function DashboardNavClient({ business, user, isPlatformAdmin, plan }: Da
 
       <form action={logoutAction} className="mt-4">
         <button className="w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-bold text-[var(--app-text-muted)] transition duration-200 hover:bg-[var(--app-surface-muted)]">
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </form>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Top bar mobil */}
+      <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-[var(--app-border)] bg-[var(--app-sidebar-bg)] px-3 py-2 lg:hidden">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--app-sidebar-hover)] text-[var(--app-sidebar-text)]"
+          aria-label="Abrir menu"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-black text-[var(--app-sidebar-text)]">{displayName}</p>
+          <p className="truncate text-[0.6rem] text-[var(--app-sidebar-text-muted)]">{user.email}</p>
+        </div>
+        <Link
+          href={`/store/${business.publicSlug}`}
+          target="_blank"
+          className="rounded-lg bg-[var(--app-primary)] px-2.5 py-1.5 text-[0.65rem] font-black text-[var(--app-button-text)]"
+        >
+          Catalogo
+        </Link>
+      </div>
+
+      {/* Overlay drawer mobil */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="relative z-50 h-full w-[280px] max-w-[85vw] overflow-y-auto border-r border-[var(--app-border)] bg-[var(--app-sidebar-bg)] p-2.5 shadow-2xl animate-[slideInLeft_0.2s_ease-out]">
+            <div className="mb-3 flex items-center justify-between px-1">
+              <span className="text-xs font-black text-[var(--app-sidebar-text)]">Menu</span>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--app-sidebar-hover)] text-[var(--app-sidebar-text-muted)]"
+                aria-label="Cerrar menu"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+
+      {/* Sidebar desktop */}
+      <aside className="hidden lg:block min-w-0 w-full max-w-[260px] border-r border-[var(--app-border)] bg-[var(--app-sidebar-bg)] p-2.5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

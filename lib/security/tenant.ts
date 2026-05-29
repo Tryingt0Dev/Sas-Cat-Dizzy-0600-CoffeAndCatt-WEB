@@ -19,9 +19,19 @@ export async function assertCanManageProduct(productId: string) {
 }
 
 export async function assertCanManageUser(targetUserId: string) {
-  await requireStoreAccess({ permission: "manage_settings" });
-  const user = await prisma.user.findUnique({
-    where: { id: targetUserId },
+  const access = await requireStoreAccess({ permission: "manage_settings" });
+  const user = await prisma.user.findFirst({
+    where: {
+      id: targetUserId,
+      ...(access.isPlatformAdmin
+        ? {}
+        : {
+            OR: [
+              { businesses: { some: { id: access.business.id } } },
+              { memberships: { some: { businessId: access.business.id } } }
+            ]
+          })
+    },
     select: { id: true, email: true, name: true, role: true }
   });
   if (!user) throw new TenantAccessError("Usuario no encontrado");

@@ -7,6 +7,7 @@ import { LearningLink } from "@/components/LearningLink";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusAlert } from "@/components/StatusAlert";
 import { StatusBadge } from "@/components/StatusBadge";
+import { defaultProductImage } from "@/lib/catalog";
 import { formatCLP, getFinalPrice } from "@/lib/format";
 import { enumValues, ProductStatus, type ProductStatus as ProductStatusValue } from "@/lib/enums";
 import { getAttributeLabels } from "@/lib/store-types";
@@ -153,29 +154,29 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
           {activeFilters ? <a href="/dashboard/products" className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-bold text-[var(--app-text)] transition duration-200 hover:bg-[var(--app-surface-muted)]">Limpiar filtros</a> : null}
         </div>
 
-        <form className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1.4fr)_150px_130px_130px_150px_auto]" action="/dashboard/products">
-          <Input name="q" defaultValue={q} placeholder="Buscar por nombre, SKU o tags..." className="py-2" />
-          <Select name="category" defaultValue={category} className="py-2">
-            <option value="">Categorías</option>
+        <form className="mb-3 grid gap-2 grid-cols-1 min-[520px]:grid-cols-2 md:grid-cols-[minmax(0,1.4fr)_130px_120px_120px_130px_auto]" action="/dashboard/products">
+          <Input name="q" defaultValue={q} placeholder="Buscar por nombre, SKU o tags..." className="py-2 text-xs" />
+          <Select name="category" defaultValue={category} className="py-2 text-xs">
+            <option value="">Categorias</option>
             {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </Select>
-          <Select name="status" defaultValue={validStatus ?? ""} className="py-2">
+          <Select name="status" defaultValue={validStatus ?? ""} className="py-2 text-xs">
             <option value="">Estados</option>
             <option value={ProductStatus.ACTIVE}>Visible</option>
             <option value={ProductStatus.DRAFT}>No visible</option>
             <option value={ProductStatus.ARCHIVED}>Archivado</option>
           </Select>
-          <Select name="stock" defaultValue={validStock} className="py-2">
+          <Select name="stock" defaultValue={validStock} className="py-2 text-xs">
             <option value="">Stock</option>
             <option value="in_stock">Con stock</option>
             <option value="low">Stock bajo</option>
             <option value="out">Agotado</option>
           </Select>
-          <Select name="price" defaultValue={validPrice} className="py-2">
+          <Select name="price" defaultValue={validPrice} className="py-2 text-xs">
             <option value="">Precio</option>
-            <option value="under_10000">Menos de $10.000</option>
-            <option value="10000_50000">$10.000 - $50.000</option>
-            <option value="over_50000">Más de $50.000</option>
+            <option value="under_10000">{'< $10.000'}</option>
+            <option value="10000_50000">$10k-$50k</option>
+            <option value="over_50000">{'> $50.000'}</option>
           </Select>
           <button className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-bold text-[var(--app-button-text)] hover:bg-[var(--app-primary-hover)]">Filtrar</button>
         </form>
@@ -213,7 +214,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Pr
                       <td className="min-w-0 px-3 py-2">
                         <div className="flex min-w-0 items-center gap-3">
                           <img
-                            src={product.imageUrl || "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=400&auto=format&fit=crop"}
+                            src={product.imageUrl || defaultProductImage}
                             alt={product.name}
                             className="h-11 w-11 shrink-0 rounded-lg object-cover"
                           />

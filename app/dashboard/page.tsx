@@ -112,16 +112,16 @@ export default async function DashboardPage() {
     { label: "IA", done: aiMessages.length > 0, hint: aiMessages.length > 0 ? "Ya recibió consultas" : "Prueba el vendedor IA" }
   ];
   const quickActions = [
-    { id: "create-product", label: "Crear producto", href: "/dashboard/products?create=1", variant: "primary" as const },
-    { id: "create-category", label: "Crear categoría", href: "/dashboard/categories" },
-    { id: "catalog", label: "Ver catálogo", href: `/store/${business.publicSlug}`, external: true },
-    { id: "design", label: "Personalizar tienda", href: "/dashboard/design" },
-    { id: "ai", label: "Consultar IA", href: `/store/${business.publicSlug}#store-ai-chat`, external: true },
-    { id: "discount", label: "Agregar descuento", href: "/dashboard/products" }
+    { id: "create-product", label: "Crear producto", href: "/dashboard/products?create=1", variant: "primary" as const, icon: "+" },
+    { id: "create-category", label: "Crear categoria", href: "/dashboard/categories", icon: "C" },
+    { id: "catalog", label: "Ver catalogo", href: `/store/${business.publicSlug}`, external: true, icon: "T" },
+    { id: "design", label: "Personalizar tienda", href: "/dashboard/design", icon: "A" },
+    { id: "ai", label: "Consultar IA", href: `/store/${business.publicSlug}#store-ai-chat`, external: true, icon: "I" },
+    { id: "whatsapp", label: "Configurar WhatsApp", href: "/dashboard/settings#contacto", icon: "W" }
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         eyebrow="Dashboard"
         title={dashboardTitle}
@@ -131,53 +131,53 @@ export default async function DashboardPage() {
             <Link
               href={`/store/${business.publicSlug}`}
               target="_blank"
-              className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
+              className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-1.5 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
             >
-              Ver catálogo
+              Ver catalogo
             </Link>
             <Link
               href="/dashboard/design"
-              className="rounded-xl bg-[var(--app-primary)] px-3 py-2 text-xs font-black text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
+              className="rounded-xl bg-[var(--app-primary)] px-3 py-1.5 text-xs font-black text-[var(--app-button-text)] shadow-sm transition duration-200 hover:bg-[var(--app-primary-hover)]"
             >
               Personalizar
             </Link>
             <LearningLink
               href="/dashboard/learning"
-              className="rounded-xl bg-[var(--app-surface)] px-3 py-2 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
+              className="rounded-xl bg-[var(--app-surface)] px-3 py-1.5 text-xs font-black text-[var(--app-text)] shadow-sm transition duration-200 hover:bg-[var(--app-surface-muted)]"
             >
-              Ver guía
+              Ver guia
             </LearningLink>
           </>
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 xl:grid-cols-7">
         {metricCards.map((metric) => (
-          <Card key={metric.label} className="p-3">
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">{metric.label}</p>
-            <p className="mt-1 text-xl font-black text-[var(--app-text)]">{metric.value}</p>
+          <Card key={metric.label} className="p-2.5">
+            <p className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-[var(--app-text-muted)]">{metric.label}</p>
+            <p className="mt-0.5 text-lg font-black text-[var(--app-text)]">{metric.value}</p>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="p-3">
-          <div className="mb-3">
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--app-primary)]">Acciones rápidas</p>
+          <div className="mb-2">
+            <p className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-[var(--app-primary)]">Acciones rapidas</p>
             <h2 className="mt-1 text-base font-black">Centro de control</h2>
           </div>
           <QuickActions actions={quickActions} columns={3} compact />
         </Card>
 
         <Card className="p-3">
-          <p className="mb-2 text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--app-text-muted)]">Estado de tienda</p>
-          <div className="space-y-2">
+          <p className="mb-2 text-[0.6rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Estado de tienda</p>
+          <div className="space-y-1.5">
             {healthItems.map((item) => (
-              <div key={item.label} className="flex items-center gap-2 rounded-xl bg-[var(--app-surface-muted)] p-2">
-                <span className={item.done ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-400"} />
+              <div key={item.label} className="flex items-center gap-2 rounded-lg bg-[var(--app-surface-muted)] p-2">
+                <span className={item.done ? "h-1.5 w-1.5 rounded-full bg-emerald-500" : "h-1.5 w-1.5 rounded-full bg-amber-400"} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[var(--app-text)]">{item.label}</p>
-                  <p className="line-clamp-1 text-[0.7rem] text-[var(--app-text-muted)]">{item.hint}</p>
+                  <p className="text-[0.7rem] font-bold text-[var(--app-text)]">{item.label}</p>
+                  <p className="line-clamp-1 text-[0.65rem] text-[var(--app-text-muted)]">{item.hint}</p>
                 </div>
               </div>
             ))}
@@ -185,22 +185,39 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {!business.whatsappNumber ? (
+        <Card className="border-amber-200 bg-amber-50/70 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm">&#9888;</span>
+              <div>
+                <p className="text-xs font-black text-amber-900">Sin canal de contacto configurado</p>
+                <p className="text-[0.7rem] text-amber-700">Configura WhatsApp para que tus clientes puedan consultar y comprar directo desde el catalogo.</p>
+              </div>
+            </div>
+            <Link href="/dashboard/settings#contacto" className="rounded-lg bg-amber-200 px-3 py-1.5 text-[0.7rem] font-black text-amber-900 transition hover:bg-amber-300">
+              Configurar contacto
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
       {storeIsEmpty ? <OnboardingChecklist items={onboardingItems} /> : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card className="p-3">
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <h3 className="text-sm font-black text-[var(--app-text)]">Stock bajo ({lowStockProducts.length})</h3>
-            <Link href="/dashboard/products" className="text-xs font-bold text-[var(--app-primary)]">Ver</Link>
+            <Link href="/dashboard/products" className="text-[0.7rem] font-bold text-[var(--app-primary)]">Ver todos</Link>
           </div>
           <div className="space-y-1">
             {lowStockProducts.length === 0 ? (
-              <p className="text-xs text-[var(--app-text-muted)]">Sin alertas</p>
+              <p className="text-[0.7rem] text-[var(--app-text-muted)]">Sin alertas de stock</p>
             ) : (
               lowStockProducts.slice(0, 5).map((product) => (
                 <div key={product.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--app-surface-muted)] p-2">
-                  <span className="truncate text-xs font-semibold text-[var(--app-text)]">{product.name}</span>
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold text-red-700">S: {product.stock}</span>
+                  <span className="truncate text-[0.75rem] font-semibold text-[var(--app-text)]">{product.name}</span>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[0.6rem] font-bold text-red-700">Stock: {product.stock}</span>
                 </div>
               ))
             )}
@@ -208,18 +225,18 @@ export default async function DashboardPage() {
         </Card>
 
         <Card className="p-3">
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <h3 className="text-sm font-black text-[var(--app-text)]">Top consultados ({topConsultedProducts.length})</h3>
-            <Link href="/dashboard/conversations" className="text-xs font-bold text-[var(--app-primary)]">Ver</Link>
+            <Link href="/dashboard/conversations" className="text-[0.7rem] font-bold text-[var(--app-primary)]">Ver todos</Link>
           </div>
           <div className="space-y-1">
             {topConsultedProducts.length === 0 ? (
-              <p className="text-xs text-[var(--app-text-muted)]">Prueba la IA</p>
+              <p className="text-[0.7rem] text-[var(--app-text-muted)]">Activa la IA para ver productos mas consultados</p>
             ) : (
               topConsultedProducts.slice(0, 5).map((product) => (
                 <div key={product.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--app-surface-muted)] p-2">
-                  <span className="truncate text-xs font-semibold text-[var(--app-text)]">{product.name}</span>
-                  <span className="rounded-full bg-[var(--app-primary)] px-2 py-0.5 text-[0.65rem] font-bold text-[var(--app-button-text)]">{product.aiConsultCount}</span>
+                  <span className="truncate text-[0.75rem] font-semibold text-[var(--app-text)]">{product.name}</span>
+                  <span className="rounded-full bg-[var(--app-primary)] px-2 py-0.5 text-[0.6rem] font-bold text-[var(--app-button-text)]">{product.aiConsultCount} consultas</span>
                 </div>
               ))
             )}
@@ -228,18 +245,18 @@ export default async function DashboardPage() {
       </div>
 
       <Card className="p-3">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 grid-cols-3">
           <div>
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Catálogo público</p>
-            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{totalProductViews} vistas de producto</p>
+            <p className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-[var(--app-text-muted)]">Catalogo publico</p>
+            <p className="mt-0.5 text-sm font-bold text-[var(--app-text)]">{totalProductViews} vistas</p>
           </div>
           <div>
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">WhatsApp</p>
-            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{totalWhatsappClicks} clicks registrados</p>
+            <p className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-[var(--app-text-muted)]">WhatsApp</p>
+            <p className="mt-0.5 text-sm font-bold text-[var(--app-text)]">{totalWhatsappClicks} clicks</p>
           </div>
           <div>
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--app-text-muted)]">IA</p>
-            <p className="mt-1 text-sm font-bold text-[var(--app-text)]">{purchaseIntentRate}% consultas con intención de compra</p>
+            <p className="text-[0.6rem] font-black uppercase tracking-[0.12em] text-[var(--app-text-muted)]">IA</p>
+            <p className="mt-0.5 text-sm font-bold text-[var(--app-text)]">{purchaseIntentRate}% intencion de compra</p>
           </div>
         </div>
       </Card>

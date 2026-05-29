@@ -1,29 +1,30 @@
+"use client";
+
 import type { CatalogPalette } from "@/lib/themes/catalog-palettes";
 
 export function CatalogPaletteBar({
   palettes,
   selectedSlug,
-  action,
-  hiddenStoreId
+  onPaletteChange
 }: {
   palettes: CatalogPalette[];
   selectedSlug: string;
-  action: (formData: FormData) => void | Promise<void>;
-  hiddenStoreId?: string;
+  onPaletteChange?: (slug: string) => void;
 }) {
   return (
     <div className="w-full overflow-hidden pb-2">
       <div className="min-w-0 max-w-full overflow-x-auto">
         <div className="flex w-max gap-2.5 pr-1">
-          {palettes.map((p) => (
-            <form key={p.slug} action={action} className="min-w-0">
-              {hiddenStoreId ? <input type="hidden" name="storeId" value={hiddenStoreId} /> : null}
-              <input type="hidden" name="paletteSlug" value={p.slug} />
+          {palettes.map((p) => {
+            const isSelected = p.slug === selectedSlug;
+            return (
               <button
-                type="submit"
+                key={p.slug}
+                type="button"
+                onClick={() => onPaletteChange?.(p.slug)}
                 className={
                   "flex h-10 shrink-0 items-center gap-2 rounded-2xl border px-2.5 text-left transition duration-200 " +
-                  (p.slug === selectedSlug
+                  (isSelected
                     ? "border-[var(--catalog-accent)] bg-[var(--app-surface)] shadow-sm"
                     : "border-[var(--app-border)] bg-[var(--app-surface)] hover:-translate-y-0.5 hover:shadow-sm")
                 }
@@ -38,8 +39,8 @@ export function CatalogPaletteBar({
                   <span className="text-[.65rem] uppercase tracking-[0.2em] text-[var(--app-text-muted)]">Paleta</span>
                 </div>
               </button>
-            </form>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

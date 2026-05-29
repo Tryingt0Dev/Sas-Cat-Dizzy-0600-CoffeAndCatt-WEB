@@ -1,0 +1,12 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "mainBkg": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#334155", "lineColor": "#334155", "secondaryColor": "#e0f2fe", "tertiaryColor": "#fef3c7", "clusterBkg": "#ffffff", "clusterBorder": "#94a3b8", "edgeLabelBackground": "#ffffff"}}}%%
+
+flowchart TD
+    Cliente["Cliente final"] --> Card["Card de producto"]
+    Card --> Boton["Hablar al WhatsApp"]
+    Boton --> Numero["Limpiar Business.whatsappNumber"]
+    Numero --> TieneNumero{"Numero configurado?"}
+    TieneNumero -- "No" --> Disabled["Boton deshabilitado: WhatsApp no configurado"]
+    TieneNumero -- "Si" --> Mensaje["Mensaje con tienda, producto, precio y link"]
+    Mensaje --> Encoded["encodeURIComponent(text)"]
+    Encoded --> WaMe["https://wa.me/NUMERO?text=MENSAJE"]
+    WaMe --> WhatsApp["WhatsApp Web/App"]

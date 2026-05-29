@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requirePlatformApiAccess } from "@/lib/api-security";
 
-export async function POST(_req: Request) {
+export async function POST(req: Request) {
+  const access = await requirePlatformApiAccess(req, {
+    permission: "billing",
+    action: "platform_admin.sync_metrics",
+    requireAllowedOrigin: true,
+    rateLimit: { endpoint: "admin:sync_metrics", limit: 30, windowMs: 10 * 60 * 1000 }
+  });
+  if (!access.ok) return access.response;
+
   // Compute a small set of owner-level metrics and return them.
   const thirty = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
